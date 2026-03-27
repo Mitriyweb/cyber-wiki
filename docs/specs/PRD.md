@@ -26,7 +26,7 @@
   - [5.8 Search](#58-search)
   - [5.9 JIRA Integration](#59-jira-integration)
   - [5.10 Access Control](#510-access-control)
-  - [5.11 Git Provider Integration](#511-git-provider-integration)
+  - [5.11 VCS Integration](#511-vcs-integration)
 - [6. Non-Functional Requirements](#6-non-functional-requirements)
   - [6.1 Module-Specific NFRs](#61-module-specific-nfrs)
   - [6.2 NFR Exclusions](#62-nfr-exclusions)
@@ -38,7 +38,7 @@
   - [Authenticate and Configure Git Credentials](#authenticate-and-configure-git-credentials)
   - [Browse Repository File Tree](#browse-repository-file-tree)
   - [View File Content with Inline Comments](#view-file-content-with-inline-comments)
-  - [View Pull Requests and Navigate to Git Provider](#view-pull-requests-and-navigate-to-git-provider)
+  - [View Pull Requests and Navigate to VCS Provider](#view-pull-requests-and-navigate-to-vcs-provider)
 - [9. Acceptance Criteria](#9-acceptance-criteria)
 - [10. Dependencies](#10-dependencies)
 - [11. Assumptions](#11-assumptions)
@@ -114,7 +114,7 @@ The result is fragmented knowledge: stale wiki pages that no longer reflect the 
 |------|------------|
 | Space | A top-level organisational unit that groups related documents, optionally linked to a Git repository |
 | Document | A file (typically Markdown) stored within a Space, version-controlled through Git |
-| Git Provider | An external Git hosting service (e.g., GitHub, Bitbucket Server) accessed via an abstract pluggable interface; v1 supports GitHub and Bitbucket Server, and the interface allows further providers to be added without changing application logic |
+| VCS Provider | An external version control system hosting service (e.g., GitHub, Bitbucket Server) accessed via an abstract pluggable interface; v1 supports GitHub and Bitbucket Server, and the interface allows further providers to be added without changing application logic |
 | Inline Comment | An annotation anchored to a line range within a Document, visible to all readers |
 | Pending Change | A proposed edit submitted by a Commenter for review and approval by an Editor or Admin |
 | Change Record | An immutable audit entry created each time a Document is saved or synced |
@@ -168,11 +168,11 @@ The result is fragmented knowledge: stale wiki pages that no longer reflect the 
 
 **ID**: `cpt-cyberwiki-actor-git-repo`
 
-**Role**: External source-of-truth for document content; the platform reads from and writes to repositories via a pluggable Git provider backend. In v1 the supported providers are GitHub and Bitbucket Server; the abstract provider interface allows additional providers to be added in future versions.
+**Role**: External source-of-truth for document content; the platform reads from and writes to repositories via a pluggable VCS backend. In v1 the supported VCS providers are GitHub and Bitbucket Server; the abstract provider interface allows additional providers to be added in future versions.
 
-**Integration**: Bidirectional — platform reads content (Git → Wiki) and writes commits (Wiki → Git) via the Git provider's API. Provider selection and base URL are configurable per user.
+**Integration**: Bidirectional — platform reads content (Git → Wiki) and writes commits (Wiki → Git) via the VCS provider's API. Provider selection and base URL are configurable per user.
 
-**Availability**: If the Git provider is unreachable, the platform operates in read-only mode; sync operations are queued and retried when connectivity is restored.
+**Availability**: If the VCS provider is unreachable, the platform operates in read-only mode; sync operations are queued and retried when connectivity is restored.
 
 #### JIRA Instance
 
@@ -216,8 +216,8 @@ The platform operates in a staging environment in v1; a production-grade deploym
 - Pending Changes workflow: propose → review → approve/reject
 - Immutable change history per document
 - Bidirectional Git synchronisation with configurable direction and schedule
-- Pluggable Git provider backend: GitHub and Bitbucket Server supported in v1; abstract interface supports adding further providers (GitLab, Azure DevOps) without changing application logic
-- Repository browsing, file tree navigation, and pull request listing via the Git provider interface
+- Pluggable VCS backend: GitHub and Bitbucket Server supported in v1; abstract interface supports adding further providers (GitLab, Azure DevOps) without changing application logic
+- Repository browsing, file tree navigation, and pull request listing via the VCS provider interface
 - Configurable document validators (link checking, schema validation, custom rules)
 - JIRA integration: inline status badges, issue views (grid, chart, Gantt), and issue search within the app
 - Full-text and semantic (AI-powered) search across all accessible documents
@@ -472,13 +472,13 @@ The system **MUST** support threaded replies to inline comments (one level of ne
 
 - [ ] `p1` - **ID**: `cpt-cyberwiki-fr-comment-storage`
 
-The system **MUST** persist all inline comments in the platform database. This applies to **all inline comments** in the platform, including:
+The system **MUST** persist all inline comments in the platform database. This storage configuration applies to **all inline comments** in the platform, including:
 - Comments on Cyber Wiki documents
-- Comments on Git provider files (source code, configuration files, etc.)
+- Comments on VCS provider files (source code, configuration files, etc.)
 - Comments on pull request diffs (if in-platform PR review is implemented in phase 2)
 
 Each comment **MUST** be stored with the following metadata to enable retrieval and line anchoring:
-- Git provider identifier (e.g., `bitbucket_server`, `github`)
+- VCS provider identifier (e.g., `bitbucket_server`, `github`)
 - Project key / organization
 - Repository slug / name
 - Branch name
@@ -619,9 +619,9 @@ The system **MUST** support pluggable custom validators (e.g., CTI-specific rule
 
 - [ ] `p1` - **ID**: `cpt-cyberwiki-fr-git-sync`
 
-The system **MUST** support bidirectional synchronisation between a Space and a linked Git repository, with configurable sync direction (repository → wiki, wiki → repository, or both) and schedule. All sync operations **MUST** be performed through the pluggable Git provider interface (`cpt-cyberwiki-fr-git-provider-backend`) so that sync works consistently across all supported providers.
+The system **MUST** support bidirectional synchronisation between a Space and a linked Git repository, with configurable sync direction (repository → wiki, wiki → repository, or both) and schedule. All sync operations **MUST** be performed through the pluggable VCS interface (`cpt-cyberwiki-fr-vcs-backend`) so that sync works consistently across all supported VCS providers.
 
-**Rationale**: Git is the source of truth; the sync keeps the platform in alignment with changes made via other Git clients and ensures edits made in the wiki reach the repository. Routing sync through the provider interface ensures it benefits from the same provider abstraction as browsing and PR listing.
+**Rationale**: Git is the source of truth; the sync keeps the platform in alignment with changes made via other Git clients and ensures edits made in the wiki reach the repository. Routing sync through the VCS provider interface ensures it benefits from the same provider abstraction as browsing and PR listing.
 
 **Actors**: `cpt-cyberwiki-actor-admin`, `cpt-cyberwiki-actor-git-repo`, `cpt-cyberwiki-actor-ci`
 
@@ -701,18 +701,18 @@ The system **MUST** authenticate all users before granting access to any space o
 
 **Actors**: `cpt-cyberwiki-actor-admin`, `cpt-cyberwiki-actor-editor`, `cpt-cyberwiki-actor-commenter`, `cpt-cyberwiki-actor-viewer`
 
-### 5.11 Git Provider Integration
+### 5.11 VCS Integration
 
-#### Git Provider Authentication
+#### VCS Provider Authentication
 
-- [ ] `p1` - **ID**: `cpt-cyberwiki-fr-git-credential-management`
+- [ ] `p1` - **ID**: `cpt-cyberwiki-fr-vcs-authentication`
 
-The system **MUST** support SSO-based authentication for Git providers without storing user credentials. For v1, the system **MUST** support:
+The system **MUST** support SSO-based authentication for VCS providers without storing user credentials. For v1, the system **MUST** support:
 
 1. **Bitbucket** - Authentication through ZTA (Zero Trust Access) tokens
 2. **GitHub** - Standard OAuth app authentication through GitHub
 
-Both authentication methods **MUST NOT** require credentials to be stored by the platform. The system **MUST** leverage provider-native authentication flows where users authenticate directly with the Git provider.
+Both authentication methods **MUST NOT** require credentials to be stored by the platform. The system **MUST** leverage provider-native authentication flows where users authenticate directly with the VCS provider.
 
 **Rationale**: SSO-based authentication eliminates the security risk of storing credentials while providing seamless access to Git repositories. ZTA tokens for Bitbucket and OAuth for GitHub are standard enterprise authentication patterns that do not require credential storage.
 
@@ -720,21 +720,21 @@ Both authentication methods **MUST NOT** require credentials to be stored by the
 
 **Actors**: `cpt-cyberwiki-actor-admin`, `cpt-cyberwiki-actor-editor`
 
-#### Pluggable Git Provider Backend
+#### Pluggable VCS Backend
 
-- [ ] `p1` - **ID**: `cpt-cyberwiki-fr-git-provider-backend`
+- [ ] `p1` - **ID**: `cpt-cyberwiki-fr-vcs-backend`
 
-The system **MUST** support GitHub and Bitbucket Server as Git providers, and **MUST** implement provider integration through an abstract interface so that additional providers (GitLab, Azure DevOps) can be added without changing the consuming application logic. Each provider **MUST** be selectable per user with a configurable base URL to support self-hosted instances.
+The system **MUST** support GitHub and Bitbucket Server as VCS providers, and **MUST** implement provider integration through an abstract interface so that additional providers (GitLab, Azure DevOps) can be added without changing the consuming application logic. Each provider **MUST** be selectable per user with a configurable base URL to support self-hosted instances.
 
-**Rationale**: Engineering teams run a variety of self-hosted or cloud Git platforms; a pluggable interface prevents vendor lock-in and enables incremental provider coverage.
+**Rationale**: Engineering teams run a variety of self-hosted or cloud VCS platforms; a pluggable interface prevents vendor lock-in and enables incremental provider coverage.
 
 **Actors**: `cpt-cyberwiki-actor-admin`, `cpt-cyberwiki-actor-editor`
 
-#### Git Provider Interface Contract
+#### VCS Provider Interface Contract
 
-- [ ] `p1` - **ID**: `cpt-cyberwiki-fr-git-provider-interface`
+- [ ] `p1` - **ID**: `cpt-cyberwiki-fr-vcs-interface`
 
-The abstract Git provider interface **MUST** define the following operations to support the requirements in section 5.11. Each provider implementation (GitHub, Bitbucket Server) **MUST** implement these operations:
+The abstract VCS provider interface **MUST** define the following operations to support the requirements in section 5.11. Each VCS provider implementation (GitHub, Bitbucket Server) **MUST** implement these operations:
 
 **Required Operations**:
 1. `listRepositories(page, pageSize)` → Returns paginated list of repositories accessible to the authenticated user, including repository name, description, default branch, and last update timestamp
@@ -757,7 +757,7 @@ The abstract Git provider interface **MUST** define the following operations to 
 - Error handling **MUST** distinguish between: authentication failures (401), authorization failures (403), not found (404), and provider errors (5xx)
 - All operations **MUST** return structured data types (not raw API responses) to decouple consuming code from provider-specific formats
 
-**Rationale**: A concrete interface contract ensures consistent behavior across Git provider implementations and enables implementers to know exactly what operations to support. This contract supports all functional requirements in section 5.11 while allowing optional operations to be deferred to phase 2.
+**Rationale**: A concrete interface contract ensures consistent behavior across VCS provider implementations and enables implementers to know exactly what operations to support. This contract supports all functional requirements in section 5.11 while allowing optional operations to be deferred to phase 2.
 
 **Actors**: `cpt-cyberwiki-actor-admin`, `cpt-cyberwiki-actor-editor`
 
@@ -765,7 +765,7 @@ The abstract Git provider interface **MUST** define the following operations to 
 
 - [ ] `p1` - **ID**: `cpt-cyberwiki-fr-repo-listing`
 
-The system **MUST** list all repositories accessible via the user's configured Git token, with support for pagination and name/description search. The system **MUST** allow users to mark repositories as favourites (persisted per user) and track recently viewed repositories (last 10, auto-pruned), with favourites surfaced first in the listing.
+The system **MUST** list all repositories accessible via the user's configured VCS token, with support for pagination and name/description search. The system **MUST** allow users to mark repositories as favourites (persisted per user) and track recently viewed repositories (last 10, auto-pruned), with favourites surfaced first in the listing.
 
 **Rationale**: Teams with dozens or hundreds of repositories need fast discovery; favourites and recents reduce the time to reach frequently-accessed repos to zero.
 
@@ -775,7 +775,7 @@ The system **MUST** list all repositories accessible via the user's configured G
 
 - [ ] `p1` - **ID**: `cpt-cyberwiki-fr-file-tree-navigation`
 
-The system **MUST** display a repository's directory tree for any selectable branch, including last-modified date and last-author metadata per entry where available from the Git provider. The system **MUST** support recursive directory drill-down and display files that exist only in open pull requests (phantom files) as a distinct visual type within the tree.
+The system **MUST** display a repository's directory tree for any selectable branch, including last-modified date and last-author metadata per entry where available from the VCS provider. The system **MUST** support recursive directory drill-down and display files that exist only in open pull requests (phantom files) as a distinct visual type within the tree.
 
 **Rationale**: Navigating a repository as a browsable file tree — rather than raw clone output — is the expected interaction model for non-Git-client users; last-author/date metadata provides provenance context without requiring a separate blame query.
 
@@ -795,7 +795,7 @@ The system **MUST** render the content of any text file from a Git repository wi
 
 - [ ] `p2` - **ID**: `cpt-cyberwiki-fr-git-blame`
 
-The system **MUST** display per-line authorship (author name, commit SHA, commit date) for any file from a Git repository, sourced directly from the Git provider's blame API.
+The system **MUST** display per-line authorship (author name, commit SHA, commit date) for any file from a Git repository, sourced directly from the VCS provider's blame API.
 
 **Rationale**: Blame information is essential for understanding who introduced a specific line of code or content and when, enabling faster triage and accountability without leaving the platform.
 
@@ -805,9 +805,9 @@ The system **MUST** display per-line authorship (author name, commit SHA, commit
 
 - [ ] `p1` - **ID**: `cpt-cyberwiki-fr-pr-listing`
 
-The system **MUST** list pull requests for a repository (filterable by state: open / merged / declined, and by search query) and display each PR's metadata: title, author, source and target branches, age, commit count, lines-of-code delta, reviewer count, and comment count. The system **MUST** provide a "View on [Git Provider]" link for each PR that opens the PR in the Git provider's native interface.
+The system **MUST** list pull requests for a repository (filterable by state: open / merged / declined, and by search query) and display each PR's metadata: title, author, source and target branches, age, commit count, lines-of-code delta, reviewer count, and comment count. The system **MUST** provide a "View on [VCS Provider]" link for each PR that opens the PR in the VCS provider's native interface.
 
-**Rationale**: Viewing PRs in the native Git provider interface leverages existing, mature PR review tools without requiring complex in-platform diff rendering. This reduces implementation complexity for v1 while still providing PR visibility and quick access.
+**Rationale**: Viewing PRs in the native VCS provider interface leverages existing, mature PR review tools without requiring complex in-platform diff rendering. This reduces implementation complexity for v1 while still providing PR visibility and quick access.
 
 **Actors**: `cpt-cyberwiki-actor-editor`, `cpt-cyberwiki-actor-commenter`
 
@@ -825,7 +825,7 @@ The system **MUST** list pull requests for a repository (filterable by state: op
 
 - [ ] `p2` - **ID**: `cpt-cyberwiki-fr-api-token-management`
 
-The system **MUST** allow users to create, list, and delete named personal API tokens that can be used to authenticate programmatic access (CI, scripts) to the platform. API tokens **MUST** be distinct from the Git provider OAuth tokens used to access Git repositories.
+The system **MUST** allow users to create, list, and delete named personal API tokens that can be used to authenticate programmatic access (CI, scripts) to the platform. API tokens **MUST** be distinct from the VCS provider OAuth/ZTA tokens.
 
 **Token Format**:
 - Tokens **MUST** be opaque random strings with minimum 128 bits of entropy (e.g., UUID v4 or cryptographically secure random bytes encoded as base64)
@@ -933,11 +933,11 @@ The system **MUST** complete a document save (validation + write) in under 3 sec
 
 - [ ] `p1` - **ID**: `cpt-cyberwiki-nfr-repo-list-performance`
 
-The system **MUST** display the repository list and return search results in under 1 second at p95 for users with access to up to 500 repositories. The system **MUST** implement repository list caching to avoid repeated API calls to the Git provider on every page load.
+The system **MUST** display the repository list and return search results in under 1 second at p95 for users with access to up to 500 repositories. The system **MUST** implement repository list caching to avoid repeated API calls to the VCS provider on every page load.
 
 **Threshold**: ≤ 1 000 ms at p95, ≤ 500 repositories per user
 
-**Rationale**: Users frequently navigate between repositories and return to the repository list; without caching, every navigation would trigger a slow API call to the Git provider, degrading the user experience. Caching enables instant repository list display and fast search filtering.
+**Rationale**: Users frequently navigate between repositories and return to the repository list; without caching, every navigation would trigger a slow API call to the VCS provider, degrading the user experience. Caching enables instant repository list display and fast search filtering.
 
 #### Availability
 
@@ -977,7 +977,7 @@ The system **MUST** be operable by non-engineers (product managers, designers) w
 
 All user credentials stored by the platform — including Confluence tokens and JIRA tokens — **MUST** be encrypted at rest using symmetric encryption with a key that is never stored alongside the data. The plaintext of any credential **MUST NOT** be written to the database, application logs, or any audit record. The application **MUST** use a configurable encryption key (distinct from the application secret key) so that key rotation is possible without re-deploying the application.
 
-**Note**: Git provider access tokens (GitHub OAuth, Bitbucket ZTA) are not stored by the platform; they are obtained via the provider's OAuth/SSO flow and held only for the duration of the user session. This NFR applies to any service credentials (e.g., Confluence, JIRA) that require persistent storage.
+**Note**: VCS provider access tokens (GitHub OAuth, Bitbucket ZTA) are not stored by the platform; they are obtained via the provider's OAuth/SSO flow and held only for the duration of the user session. This NFR applies to any service credentials (e.g., Confluence, JIRA) that require persistent storage.
 
 **Threshold**: Zero stored credentials in plaintext; encryption key is externally configurable
 
@@ -1011,7 +1011,7 @@ Not applicable — Cyber Wiki is an end-user web application, not a library. It 
 
 Cyber Wiki depends on the following external integration contracts:
 
-- **Git Provider**: Reads and writes document content over standard Git protocols (SSH/HTTPS). No custom API contract; standard Git wire protocol applies.
+- **VCS Provider**: Reads and writes document content over standard Git protocols (SSH/HTTPS). No custom API contract; standard Git wire protocol applies.
 - **JIRA REST API**: Consumes JIRA issue data (status, assignee, priority, summary) via the JIRA Cloud/Server REST API; contract format TBD in DESIGN.
 - **Embedding Service**: Sends document text and receives vector embeddings; contract format (input schema, vector dimensions, batch size) TBD in DESIGN.
 - **Vector Database**: Stores and queries document embeddings for semantic search; query protocol and index format TBD in DESIGN.
@@ -1064,18 +1064,18 @@ Cyber Wiki depends on the following external integration contracts:
 3. User authenticates with their enterprise credentials; identity provider redirects back with authentication token
 4. System validates the token and creates an authenticated session
 5. User navigates to the Profile settings page
-6. User selects a Git provider (GitHub or Bitbucket Server) and enters the provider base URL
-7. User initiates OAuth flow for the selected Git provider (GitHub OAuth or Bitbucket ZTA)
-8. Git provider authenticates the user and grants access; system receives access token via OAuth callback
+6. User selects a VCS provider (GitHub or Bitbucket Server) and enters the provider base URL
+7. User initiates OAuth flow for the selected VCS provider (GitHub OAuth or Bitbucket ZTA)
+8. VCS provider authenticates the user and grants access; system receives access token via OAuth callback
 9. System stores minimal session information; no credentials are stored
 
 **Postconditions**:
 - User session is active; all subsequent API calls are authenticated via SSO token
-- Git provider access is established via the provider's OAuth flow (GitHub) or ZTA flow (Bitbucket Server) without credential storage
+- VCS provider access is established via OAuth/ZTA without credential storage
 
 **Alternative Flows**:
 - **SSO authentication failure**: System returns to login page with error message; user must retry authentication
-- **OAuth flow cancellation**: User cancels Git provider OAuth; system notifies user that Git access is not configured
+- **OAuth flow cancellation**: User cancels VCS provider OAuth; system notifies user that VCS access is not configured
 
 ---
 
@@ -1087,10 +1087,10 @@ Cyber Wiki depends on the following external integration contracts:
 
 **Preconditions**:
 - User is authenticated and has a valid Git token configured
-- At least one repository is accessible via the configured Git provider
+- At least one repository is accessible via the configured VCS provider
 
 **Main Flow**:
-1. User opens the Repositories view; system lists all accessible repositories (via configured Git provider token)
+1. User opens the Repositories view; system lists all accessible repositories (via configured VCS token)
 2. User can search repositories by name/description
 3. User marks a repository as a favourite (persisted per user); favourited repos appear at the top
 4. User opens a repository; system loads the default branch and displays the root directory tree
@@ -1120,7 +1120,7 @@ Cyber Wiki depends on the following external integration contracts:
 - User has navigated to a file in the repository file tree
 
 **Main Flow**:
-1. System fetches file content from the Git provider and renders it with syntax highlighting
+1. System fetches file content from the VCS provider and renders it with syntax highlighting
 2. User selects one or more lines in the rendered file; the "Add comment" action becomes available
 3. User types a comment and submits; system captures the commented line content and 2–3 lines of surrounding context for future anchoring
 4. System persists the comment with: line range, line content hash, context before/after, original line number, and anchoring status (`anchored`)
@@ -1133,7 +1133,7 @@ Cyber Wiki depends on the following external integration contracts:
 7. User can edit or delete their own comments (ownership enforced); status can be toggled to `resolved`
 
 **Postconditions**:
-- Comment is persisted against the git provider + project + repo + branch + file path coordinates
+- Comment is persisted against the VCS provider + project + repo + branch + file path coordinates
 - All future views of the same file show the comment at the dynamically computed current line position
 
 **Alternative Flows**:
@@ -1142,7 +1142,7 @@ Cyber Wiki depends on the following external integration contracts:
 
 ---
 
-### View Pull Requests and Navigate to Git Provider
+### View Pull Requests and Navigate to VCS Provider
 
 - [ ] `p1` - **ID**: `cpt-cyberwiki-usecase-view-pr`
 
@@ -1154,20 +1154,20 @@ Cyber Wiki depends on the following external integration contracts:
 
 **Main Flow**:
 1. User opens a repository and switches to the "Pull Requests" tab
-2. System fetches PRs from the Git provider and displays them with: title, author, source → target branch, age, commit count, LoC delta, reviewer count, and comment count
+2. System fetches PRs from the VCS provider and displays them with: title, author, source → target branch, age, commit count, LoC delta, reviewer count, and comment count
 3. User can filter PRs by search query, project, or repository; user can toggle between open/merged/declined states
-4. User clicks "View on [Git Provider]" link for a PR
-5. System opens the PR in the Git provider's native interface in a new tab
+4. User clicks "View on [VCS Provider]" link for a PR
+5. System opens the PR in the VCS provider's native interface in a new tab
 
 **Postconditions**:
-- User is viewing the PR in the Git provider's native review interface
-- User can perform all PR review actions (comment, approve, merge) in the Git provider
+- User is viewing the PR in the VCS provider's native review interface
+- User can perform all PR review actions (comment, approve, merge) in the VCS provider
 
 **Alternative Flows**:
 - **PR not found**: System shows a 404 error with the PR identifier
 - **No PRs available**: System shows an empty PR list with an informational message
 
-**Note**: In-platform PR diff review with hunk-level navigation is deferred to phase 2 (see `cpt-cyberwiki-fr-pr-diff-review`). For v1, all PR review actions are performed in the Git provider's native interface.
+**Note**: In-platform PR diff review with hunk-level navigation is deferred to phase 2 (see `cpt-cyberwiki-fr-pr-diff-review`). For v1, all PR review actions are performed in the VCS provider's native interface.
 
 ---
 
@@ -1191,14 +1191,14 @@ Cyber Wiki depends on the following external integration contracts:
 - [ ] A Viewer cannot edit or propose changes to a document (access is denied)
 - [ ] All document saves are reflected as commits in the linked Git repository within the configured sync interval
 - [ ] A user can authenticate via SSO/OIDC; an active session is established and persisted across page reloads
-- [ ] A user can configure a Git provider (GitHub or Bitbucket Server) and initiate OAuth authentication flow; access is granted without storing credentials
+- [ ] A user can configure a VCS provider (GitHub or Bitbucket Server) and initiate OAuth authentication flow; access is granted without storing credentials
 - [ ] A user can create, list, and revoke named API tokens for programmatic access to the platform API
 - [ ] The Repositories view lists all repositories accessible via the user's Git token; the list is searchable by name/description
 - [ ] A user can mark any repository as a favourite; favourites appear at the top of the listing and persist across sessions
 - [ ] The system records the last 10 repositories opened by each user; this recent list is visible in the Repositories view
 - [ ] Opening a repository displays the default branch and root directory tree; the user can select any branch from a dropdown to reload the tree
 - [ ] A user can navigate into subdirectories by clicking folder entries; file entries added only in open pull requests are visually distinguished from committed files
-- [ ] Each file entry in the directory tree displays the last-modified date and last-author name where available from the Git provider
+- [ ] Each file entry in the directory tree displays the last-modified date and last-author name where available from the VCS provider
 - [ ] Opening a file displays its content with syntax highlighting appropriate to the detected language and line numbers on every line
 - [ ] A user can view per-line authorship (author, commit SHA, date) for any file via a blame view
 - [ ] A user can select a line range in a file view and submit an inline comment; the comment appears anchored to that line range
