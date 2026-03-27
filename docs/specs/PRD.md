@@ -685,13 +685,20 @@ The system **MUST** authenticate all users before granting access to any space o
 
 ### 5.11 Git Provider Integration
 
-#### Multi-Provider Git Credential Management
+#### Git Provider Authentication
 
 - [ ] `p1` - **ID**: `cpt-cyberwiki-fr-git-credential-management`
 
-The system **MUST** allow each user to configure per-user credentials for external services — Git provider, Confluence, JIRA, and ZTA (Zero Trust Access) — through a Profile settings page. Each credential set **MUST** be stored encrypted at rest (symmetric encryption). The system **MUST** confirm credential presence without ever exposing the plaintext secret.
+The system **MUST** support SSO-based authentication for Git providers without storing user credentials. For v1, the system **MUST** support:
 
-**Rationale**: Engineering teams operate behind Zero Trust proxies and use corporate JIRA/Confluence instances with separate tokens; storing all credentials per-user in one place eliminates repeated configuration across features.
+1. **Bitbucket** - Authentication through ZTA (Zero Trust Access) tokens
+2. **GitHub** - Standard OAuth app authentication through GitHub
+
+Both authentication methods **MUST NOT** require credentials to be stored by the platform. The system **MUST** leverage provider-native authentication flows where users authenticate directly with the Git provider.
+
+**Rationale**: SSO-based authentication eliminates the security risk of storing credentials while providing seamless access to Git repositories. ZTA tokens for Bitbucket and OAuth for GitHub are standard enterprise authentication patterns that do not require credential storage.
+
+**Note**: Credential storage for Confluence, JIRA, and other services may be addressed in future ADR/DESIGN documents if required.
 
 **Actors**: `cpt-cyberwiki-actor-admin`, `cpt-cyberwiki-actor-editor`
 
