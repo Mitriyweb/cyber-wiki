@@ -677,9 +677,9 @@ The system **MUST** allow users to search JIRA issues from within the platform w
 
 - [ ] `p1` - **ID**: `cpt-cyberwiki-fr-authentication`
 
-The system **MUST** authenticate all users before granting access to any space or document; the platform **MUST** support at minimum username/password authentication and **SHOULD** support SSO/OIDC integration for teams using an identity provider.
+The system **MUST** authenticate all users before granting access to any space or document; the platform **MUST** support SSO/OIDC integration for user authentication. Username/password authentication is explicitly out of scope for v1.
 
-**Rationale**: Authentication is required to inherit Git repository permissions; SSO reduces credential management overhead for engineering teams already using an identity provider.
+**Rationale**: SSO/OIDC authentication eliminates credential storage risks and integrates with existing enterprise identity providers. This aligns with the Git provider authentication approach (ZTA tokens, OAuth) and provides a consistent security model across the platform.
 
 **Actors**: `cpt-cyberwiki-actor-admin`, `cpt-cyberwiki-actor-editor`, `cpt-cyberwiki-actor-commenter`, `cpt-cyberwiki-actor-viewer`
 
@@ -938,24 +938,26 @@ Cyber Wiki depends on the following external integration contracts:
 **Actor**: `cpt-cyberwiki-actor-editor`, `cpt-cyberwiki-actor-admin`
 
 **Preconditions**:
-- User has a valid account (username + password) in the system
+- User has a valid account in the enterprise identity provider (SSO/OIDC)
 
 **Main Flow**:
-1. User navigates to the login page
-2. User enters username and password; system validates and creates an authenticated session
-3. User navigates to the Profile settings page
-4. User selects a Git provider (GitHub or Bitbucket Server) and enters the provider base URL
-5. User enters their Git personal access token; system encrypts it at rest using Fernet symmetric encryption
-6. Optionally, user configures Confluence URL + token, JIRA URL + email + token, and ZTA token in the same profile form
-7. User saves settings; system confirms token presence (without exposing the secret)
+1. User navigates to the application
+2. System redirects to SSO/OIDC identity provider for authentication
+3. User authenticates with their enterprise credentials; identity provider redirects back with authentication token
+4. System validates the token and creates an authenticated session
+5. User navigates to the Profile settings page
+6. User selects a Git provider (GitHub or Bitbucket Server) and enters the provider base URL
+7. User initiates OAuth flow for the selected Git provider (GitHub OAuth or Bitbucket ZTA)
+8. Git provider authenticates the user and grants access; system receives access token via OAuth callback
+9. System stores minimal session information; no credentials are stored
 
 **Postconditions**:
-- User session is active; all subsequent API calls are authenticated
-- Git (and optionally Confluence/JIRA) credentials are stored encrypted and available for provider calls
+- User session is active; all subsequent API calls are authenticated via SSO token
+- Git provider access is established via OAuth/ZTA without credential storage
 
 **Alternative Flows**:
-- **Wrong password**: System returns 401; user remains on login page
-- **Token encryption failure**: System logs the error and treats the token as unset; user is prompted to reconfigure
+- **SSO authentication failure**: System returns to login page with error message; user must retry authentication
+- **OAuth flow cancellation**: User cancels Git provider OAuth; system notifies user that Git access is not configured
 
 ---
 
@@ -1072,10 +1074,9 @@ Cyber Wiki depends on the following external integration contracts:
 - [ ] `[JIRA:KEY-123]` references render as inline badges showing live status, assignee, and priority
 - [ ] A Viewer cannot edit or propose changes to a document (access is denied)
 - [ ] All document saves are reflected as commits in the linked Git repository within the configured sync interval
-- [ ] A user can log in with username and password; an active session is established and persisted across page reloads
-- [ ] A user can configure a Git provider (GitHub or Bitbucket Server), base URL, and personal access token in Profile settings; the credential is stored encrypted and never exposed in plaintext
-- [ ] A user can additionally configure Confluence, JIRA, and ZTA credentials in the same Profile settings page; each credential is stored independently encrypted
-- [ ] A user can create, list, and revoke named API tokens for programmatic access independently of their Git credentials
+- [ ] A user can authenticate via SSO/OIDC; an active session is established and persisted across page reloads
+- [ ] A user can configure a Git provider (GitHub or Bitbucket Server) and initiate OAuth authentication flow; access is granted without storing credentials
+- [ ] A user can create, list, and revoke named API tokens for programmatic access to the platform API
 - [ ] The Repositories view lists all repositories accessible via the user's Git token; the list is searchable by name/description
 - [ ] A user can mark any repository as a favourite; favourites appear at the top of the listing and persist across sessions
 - [ ] The system records the last 10 repositories opened by each user; this recent list is visible in the Repositories view
