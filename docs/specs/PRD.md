@@ -727,6 +727,37 @@ The system **MUST** support GitHub and Bitbucket Server as Git providers, and **
 
 **Actors**: `cpt-cyberwiki-actor-admin`, `cpt-cyberwiki-actor-editor`
 
+#### Git Provider Interface Contract
+
+- [ ] `p1` - **ID**: `cpt-cyberwiki-fr-git-provider-interface`
+
+The abstract Git provider interface **MUST** define the following operations to support the requirements in section 5.11. Each provider implementation (GitHub, Bitbucket Server) **MUST** implement these operations:
+
+**Required Operations**:
+1. `listRepositories(page, pageSize)` → Returns paginated list of repositories accessible to the authenticated user, including repository name, description, default branch, and last update timestamp
+2. `getBranches(repoId)` → Returns list of branches for a repository, including branch name and whether it is the default branch
+3. `getDirectoryContents(repoId, branch, path)` → Returns list of files and directories at the specified path, including name, type (file/directory), size, last modified date, and last author
+4. `getFileContent(repoId, branch, path)` → Returns file content as text or binary, with detected MIME type
+5. `listPullRequests(repoId, state, page, pageSize)` → Returns paginated list of pull requests filtered by state (open/merged/declined), including PR number, title, author, source/target branches, age, commit count, and LoC delta
+
+**Optional Operations** (for phase 2 in-platform PR review):
+6. `getPullRequestFiles(repoId, prId)` → Returns list of changed files in a PR with addition/deletion counts per file
+7. `getPullRequestDiff(repoId, prId, filePath)` → Returns diff hunks for a specific file in a PR with line-level changes
+
+**Optional Operations** (for Git blame feature):
+8. `getBlame(repoId, branch, path)` → Returns per-line authorship information (author, commit SHA, date) for a file
+
+**Interface Requirements**:
+- Each operation **MUST** accept a configurable base URL for self-hosted instances
+- Each operation **MUST** use the authenticated user's OAuth token or ZTA token for authorization
+- Pagination **MUST** follow a consistent pattern (page number + page size or cursor-based)
+- Error handling **MUST** distinguish between: authentication failures (401), authorization failures (403), not found (404), and provider errors (5xx)
+- All operations **MUST** return structured data types (not raw API responses) to decouple consuming code from provider-specific formats
+
+**Rationale**: A concrete interface contract ensures consistent behavior across Git provider implementations and enables implementers to know exactly what operations to support. This contract supports all functional requirements in section 5.11 while allowing optional operations to be deferred to phase 2.
+
+**Actors**: `cpt-cyberwiki-actor-admin`, `cpt-cyberwiki-actor-editor`
+
 #### Repository Listing and Search
 
 - [ ] `p1` - **ID**: `cpt-cyberwiki-fr-repo-listing`
