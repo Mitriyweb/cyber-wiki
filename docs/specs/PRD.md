@@ -813,6 +813,16 @@ The system **MUST** complete a document save (validation + write) in under 3 sec
 
 **Rationale**: A slow save loop breaks the editing flow and discourages frequent incremental saves.
 
+#### Repository List and Search Performance
+
+- [ ] `p1` - **ID**: `cpt-cyberwiki-nfr-repo-list-performance`
+
+The system **MUST** display the repository list and return search results in under 1 second at p95 for users with access to up to 500 repositories. The system **MUST** implement repository list caching to avoid repeated API calls to the Git provider on every page load.
+
+**Threshold**: ≤ 1 000 ms at p95, ≤ 500 repositories per user
+
+**Rationale**: Users frequently navigate between repositories and return to the repository list; without caching, every navigation would trigger a slow API call to the Git provider, degrading the user experience. Caching enables instant repository list display and fast search filtering.
+
 #### Availability
 
 - [ ] `p2` - **ID**: `cpt-cyberwiki-nfr-availability`
