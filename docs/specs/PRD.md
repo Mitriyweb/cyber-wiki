@@ -752,13 +752,23 @@ The system **MUST** display per-line authorship (author name, commit SHA, commit
 
 **Actors**: `cpt-cyberwiki-actor-editor`, `cpt-cyberwiki-actor-viewer`
 
-#### Pull Request Listing and Diff Review
+#### Pull Request Listing and External View
 
-- [ ] `p1` - **ID**: `cpt-cyberwiki-fr-pr-diff-review`
+- [ ] `p1` - **ID**: `cpt-cyberwiki-fr-pr-listing`
 
-The system **MUST** list pull requests for a repository (filterable by state: open / merged / declined, and by search query) and display each PR's metadata: title, author, source and target branches, age, commit count, lines-of-code delta, reviewer count, and comment count. The system **MUST** allow users to open a PR, view its changed-files list (with addition/deletion counts per file), select a file to view its full diff with hunk-level navigation (previous/next chunk), and see deletion and addition lines distinguished by background colour with old and new line numbers.
+The system **MUST** list pull requests for a repository (filterable by state: open / merged / declined, and by search query) and display each PR's metadata: title, author, source and target branches, age, commit count, lines-of-code delta, reviewer count, and comment count. The system **MUST** provide a "View on [Git Provider]" link for each PR that opens the PR in the Git provider's native interface.
 
-**Rationale**: In-platform PR review removes the need to switch to the Git host for reviewing proposed changes in the context of surrounding documentation; hunk navigation makes large diffs tractable.
+**Rationale**: Viewing PRs in the native Git provider interface leverages existing, mature PR review tools without requiring complex in-platform diff rendering. This reduces implementation complexity for v1 while still providing PR visibility and quick access.
+
+**Actors**: `cpt-cyberwiki-actor-editor`, `cpt-cyberwiki-actor-commenter`
+
+#### In-Platform Pull Request Diff Review
+
+- [ ] `p3` - **ID**: `cpt-cyberwiki-fr-pr-diff-review` **(Phase 2 / Future)**
+
+The system **MAY** allow users to open a PR within the platform, view its changed-files list (with addition/deletion counts per file), select a file to view its full diff with hunk-level navigation (previous/next chunk), and see deletion and addition lines distinguished by background colour with old and new line numbers.
+
+**Rationale**: In-platform PR review would remove the need to switch to the Git host for reviewing proposed changes, but is deferred to phase 2 to reduce v1 complexity. The external view link provides sufficient functionality for v1.
 
 **Actors**: `cpt-cyberwiki-actor-editor`, `cpt-cyberwiki-actor-commenter`
 
@@ -1024,34 +1034,32 @@ Cyber Wiki depends on the following external integration contracts:
 
 ---
 
-### Review Pull Request Diff
+### View Pull Requests and Navigate to Git Provider
 
-- [ ] `p1` - **ID**: `cpt-cyberwiki-usecase-review-pr`
+- [ ] `p1` - **ID**: `cpt-cyberwiki-usecase-view-pr`
 
 **Actor**: `cpt-cyberwiki-actor-editor`, `cpt-cyberwiki-actor-commenter`
 
 **Preconditions**:
 - User is authenticated and has a valid Git token configured
-- The target repository has at least one open pull request
+- The target repository has at least one pull request
 
 **Main Flow**:
 1. User opens a repository and switches to the "Pull Requests" tab
-2. System fetches open PRs from the Git provider and displays them with: title, author, source → target branch, age, commit count, LoC delta, reviewer count, and comment count
+2. System fetches PRs from the Git provider and displays them with: title, author, source → target branch, age, commit count, LoC delta, reviewer count, and comment count
 3. User can filter PRs by search query, project, or repository; user can toggle between open/merged/declined states
-4. User clicks a PR to open the diff view; system fetches the list of changed files
-5. User selects a file from the changed-files list; system fetches the diff for that file
-6. Diff is rendered with hunk-level navigation: context lines, deletion lines (red), addition lines (green), line numbers for both old and new sides
-7. User navigates between change chunks using the chunk navigator (previous/next chunk)
-8. User selects a line or range in the diff and adds a comment; the comment is anchored to the file path and line range with full context capture (same mechanism as file-view comments)
-9. User navigates between files in the PR using the PR file navigator
+4. User clicks "View on [Git Provider]" link for a PR
+5. System opens the PR in the Git provider's native interface in a new tab
 
 **Postconditions**:
-- PR diff is visible with all changed files and hunk-level context
-- Any comments left on diff lines are persisted with line-anchoring metadata
+- User is viewing the PR in the Git provider's native review interface
+- User can perform all PR review actions (comment, approve, merge) in the Git provider
 
 **Alternative Flows**:
 - **PR not found**: System shows a 404 error with the PR identifier
-- **No changed files**: System shows an empty changed-files list with an informational message
+- **No PRs available**: System shows an empty PR list with an informational message
+
+**Note**: In-platform PR diff review with hunk-level navigation is deferred to phase 2 (see `cpt-cyberwiki-fr-pr-diff-review`). For v1, all PR review actions are performed in the Git provider's native interface.
 
 ---
 
