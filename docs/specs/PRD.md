@@ -118,6 +118,10 @@ The result is fragmented knowledge: stale wiki pages that no longer reflect the 
 | Space | A top-level organisational unit that groups related documents, optionally linked to a Git repository |
 | Document | A file (typically Markdown) stored within a Space, version-controlled through Git |
 | VCS Provider | An external version control system hosting service (e.g., GitHub, Bitbucket Server) accessed via an abstract pluggable interface; v1 supports GitHub and Bitbucket Server, and the interface allows further providers to be added without changing application logic |
+| Document View | A left navigation mode that presents Space contents as a titled document hierarchy (Confluence-style), derived from a configurable Document Index rather than the raw file tree |
+| File Tree View | A left navigation mode that presents Space contents as the raw directory and file structure from the Git repository, mirroring the on-disk layout |
+| Document Index | A configurable mapping that determines which files in a Space are treated as Documents, how they are labelled (title extraction rules), and how they are ordered and grouped in the Document View |
+| Title Extraction Rule | A configurable rule specifying how the platform derives a human-readable title for a Document (e.g., first `#` heading in Markdown, YAML front-matter `title` field, filename without extension) |
 | Inline Comment | An annotation anchored to a line range within a Document, visible to all readers |
 | Pending Change | A proposed edit submitted by a Commenter for review and approval by an Editor or Admin |
 | Change Record | An immutable audit entry created each time a Document is saved or synced |
@@ -245,6 +249,8 @@ Modern platforms use various comment system architectures: third-party services 
 - Bidirectional Git synchronisation with configurable direction and schedule
 - Pluggable VCS backend: GitHub and Bitbucket Server supported in v1; abstract interface supports adding further providers (GitLab, Azure DevOps) without changing application logic
 - Repository browsing, file tree navigation, and pull request listing via the VCS provider interface
+- Dual-mode left navigation panel: Document View (Confluence-style titled hierarchy from a configurable Document Index) and File Tree View (raw directory structure); user-switchable per Space
+- Configurable Document Index per Space: rules for which files are treated as documents, title extraction strategy (e.g., first Markdown heading, front-matter field, filename), and custom ordering/grouping
 - Configurable document validators (link checking, schema validation, custom rules)
 - JIRA integration: inline status badges, issue views (grid, chart, Gantt), and issue search within the app
 - Full-text and semantic (AI-powered) search across all accessible documents
@@ -286,7 +292,65 @@ The system **MUST** support a configurable "entry page" mode where the platform 
 
 **Actors**: `cpt-cyberwiki-actor-admin`, `cpt-cyberwiki-actor-editor`, `cpt-cyberwiki-actor-viewer`
 
-### 5.2 Live Document Editing
+#### Dual-Mode Left Navigation Panel
+
+- [ ] `p1` - **ID**: `cpt-cyberwiki-fr-left-nav-dual-mode`
+
+The system **MUST** provide a persistent left navigation panel within a Space that supports two distinct view modes, switchable by the user at any time:
+
+1. **Document View** — presents Space contents as a titled document hierarchy, analogous to the Confluence left sidebar. Items are displayed using their human-readable document titles (not file paths), grouped and ordered according to the Space's Document Index configuration. The hierarchy supports multiple levels of nesting (sections, child pages). A page can be a parent/child of another page regardless of its position in the file tree.
+
+2. **File Tree View** — presents Space contents as the raw directory and file structure from the Git repository, mirroring the on-disk layout. All files and folders are shown, using their actual filenames.
+
+The user's last-selected mode **MUST** be persisted per Space so that returning to the Space restores the previous selection. Both modes **MUST** remain navigable and functional; switching modes **MUST NOT** navigate away from the currently open document.
+
+**Rationale**: Non-engineers (PMs, designers, writers) expect a Confluence-style titled hierarchy for intuitive navigation; engineers expect the raw file tree for precise file location. Supporting both modes serves the full user population without forcing either group to compromise. Per-Space persistence avoids repetitive mode switching.
+
+**Actors**: `cpt-cyberwiki-actor-admin`, `cpt-cyberwiki-actor-editor`, `cpt-cyberwiki-actor-commenter`, `cpt-cyberwiki-actor-viewer`
+
+#### Configurable Document Index
+
+- [ ] `p1` - **ID**: `cpt-cyberwiki-fr-document-index`
+
+Each Space **MUST** support a configurable Document Index that defines how the Document View is constructed. The Document Index **MUST** be configurable by Admins (and optionally Editors) per Space and **MUST** support the following settings:
+
+1. **Included file extensions** — a list of file extensions treated as Documents and shown in Document View (e.g., `.md`, `.mdx`, `.txt`, `.yaml`, `.rst`). Files with unlisted extensions are excluded from Document View but remain visible in File Tree View.
+
+2. **Excluded paths** — glob patterns for files or directories to exclude from Document View entirely (e.g., `**/node_modules/**`, `**/.github/**`).
+
+3. **Custom title/ordering mapping** — an optional explicit mapping that overrides the default ordering and nesting, specified as a structured index file (e.g., `_index.yaml`, `_sidebar.md`) committed to the repository. When present, this file defines the Document View hierarchy; entries not listed in the file are appended at the end under an "Other" group.
+
+4. **Document ordering strategy** — when no explicit mapping is provided, documents are ordered by: (a) an explicit `order` front-matter field, then (b) document title alphabetically, then (c) filename alphabetically.
+
+5. **Section headings** — support for virtual section headings in Document View that are not themselves navigable documents (display-only grouping labels), defined in the custom mapping file.
+
+**Rationale**: Different teams organise their repositories differently (Cypress-style `docs/` folders, ADR directories, mixed code+docs repos). A configurable index allows each Space to surface only relevant documents in the correct order without requiring repository restructuring. Supporting an index file committed to the repository keeps the navigation structure version-controlled alongside the content.
+
+**Actors**: `cpt-cyberwiki-actor-admin`, `cpt-cyberwiki-actor-editor`
+
+#### Document Title Extraction Rules
+
+- [ ] `p1` - **ID**: `cpt-cyberwiki-fr-title-extraction`
+
+The system **MUST** support a per-Space configurable strategy for extracting a human-readable title for each Document shown in Document View. The following extraction strategies **MUST** be supported and **MUST** be selectable per Space (with a configurable priority order when multiple strategies apply):
+
+1. **First Markdown heading** — extract the text of the first `#` heading in the file (e.g., `# Architecture Decision Record` → `Architecture Decision Record`). Applicable to `.md` and `.mdx` files.
+
+2. **Front-matter field** — extract a named field from YAML front-matter at the top of the file (e.g., `title:` field). The field name is configurable (default: `title`). Applicable to any file format supporting YAML front-matter.
+
+3. **First non-empty line** — use the first non-empty, non-comment line of the file as the title. Applicable to any text format as a fallback.
+
+4. **Filename without extension** — use the filename without its extension, with underscores and hyphens replaced by spaces, and title-cased (e.g., `api-design-guide.md` → `Api Design Guide`). This is the default fallback when no other strategy yields a result.
+
+When no strategy yields a non-empty result for a file, the system **MUST** fall back to the full relative file path as the display title.
+
+The configured extraction strategy **MUST** apply consistently to all documents in the Space and **MUST** be re-evaluated whenever a document is saved or synced.
+
+**Rationale**: Engineering repositories use a variety of conventions for document titles. A configurable extraction hierarchy lets each Space surface meaningful titles without requiring authors to follow a single format. Falling back gracefully to filename ensures no document is ever displayed with an empty or broken title. Re-evaluating on save/sync keeps the navigation panel current without manual refresh.
+
+**Actors**: `cpt-cyberwiki-actor-admin`, `cpt-cyberwiki-actor-editor`
+
+### 6.2 Live Document Editing
 
 #### In-Browser Editing with Live Preview
 
@@ -463,7 +527,7 @@ The system **MUST** support a GitHub-style review workflow with a "Submit review
 
 **Actors**: `cpt-cyberwiki-actor-editor`
 
-### 5.3 Contextual Inline Comments
+### 6.3 Contextual Inline Comments
 
 #### Anchor Comments to Line Ranges
 
@@ -554,7 +618,7 @@ The system **MUST** maintain an immutable per-document change history that recor
 
 **Actors**: `cpt-cyberwiki-actor-editor`, `cpt-cyberwiki-actor-admin`, `cpt-cyberwiki-actor-viewer`
 
-### 5.5 Rich Content Previews
+### 6.5 Rich Content Previews
 
 #### Markdown Rendering
 
@@ -610,7 +674,7 @@ The system **MUST** provide an extension point for rendering custom visual eleme
 
 **Actors**: `cpt-cyberwiki-actor-admin`
 
-### 5.6 Document Validation
+### 6.6 Document Validation
 
 #### Link Checker
 
@@ -642,7 +706,7 @@ The system **MUST** support pluggable custom validators (e.g., CTI-specific rule
 
 **Actors**: `cpt-cyberwiki-actor-admin`, `cpt-cyberwiki-actor-ci`
 
-### 5.7 Git Synchronisation
+### 6.7 Git Synchronisation
 
 #### Bidirectional Sync
 
@@ -664,7 +728,7 @@ The system **MUST** detect merge conflicts during sync and surface them to the c
 
 **Actors**: `cpt-cyberwiki-actor-editor`, `cpt-cyberwiki-actor-commenter`
 
-### 5.8 Search
+### 6.8 Search
 
 #### Full-Text Search
 
@@ -686,7 +750,7 @@ The system **MUST** provide AI-powered semantic search using vector embeddings s
 
 **Actors**: `cpt-cyberwiki-actor-editor`, `cpt-cyberwiki-actor-commenter`, `cpt-cyberwiki-actor-viewer`
 
-### 5.9 JIRA Integration
+### 6.9 JIRA Integration
 
 #### Inline JIRA Issue Badges
 
@@ -718,7 +782,7 @@ The system **MUST** allow users to search JIRA issues from within the platform w
 
 **Actors**: `cpt-cyberwiki-actor-editor`, `cpt-cyberwiki-actor-commenter`
 
-### 5.10 Access Control
+### 6.10 Access Control
 
 #### User Authentication
 
@@ -730,7 +794,7 @@ The system **MUST** authenticate all users before granting access to any space o
 
 **Actors**: `cpt-cyberwiki-actor-admin`, `cpt-cyberwiki-actor-editor`, `cpt-cyberwiki-actor-commenter`, `cpt-cyberwiki-actor-viewer`
 
-### 5.11 VCS Integration
+### 6.11 VCS Integration
 
 #### VCS Provider Authentication
 
@@ -1203,6 +1267,16 @@ Cyber Wiki depends on the following external integration contracts:
 ## 10. Acceptance Criteria
 
 - [ ] An Editor can open, edit, and commit a Markdown document entirely from the browser without a local Git client
+- [ ] The left navigation panel displays in Document View by default, showing document titles derived by the configured title extraction strategy (not raw filenames)
+- [ ] A user can switch the left navigation panel from Document View to File Tree View and back using a visible toggle; the switch is instant and does not navigate away from the currently open document
+- [ ] The selected navigation mode (Document View or File Tree View) is persisted per Space; returning to the Space after navigating away restores the last-selected mode
+- [ ] In Document View, documents are listed using their extracted titles and respect any custom ordering defined in the Space's index file (e.g., `_index.yaml`); documents not listed in the index file are appended at the end
+- [ ] In Document View, virtual section headings (defined in the index file) are displayed as non-navigable grouping labels above their child documents
+- [ ] An Admin can configure per Space: the list of file extensions treated as documents, the excluded path patterns, and the title extraction strategy
+- [ ] When a document's title extraction strategy is set to "first Markdown heading", the panel shows the text of the first `#` heading; when the heading is absent, the system falls back to the filename without extension
+- [ ] When a title extraction strategy is set to "front-matter field", the panel shows the value of the configured YAML field; when the field is absent, the system falls back to the filename without extension
+- [ ] Documents with extensions not in the configured inclusion list do not appear in Document View but remain visible in File Tree View
+- [ ] After a document is saved or synced, the Document View title and position in the left panel are updated without requiring a full page reload
 - [ ] An Editor can apply standard formatting (bold, italic, strikethrough, links, lists) and see identical rendering in edit preview and read-only view
 - [ ] Typing `//` opens a date picker with current day highlighted and inserts selected dates in `YYYY-MM-DD` format
 - [ ] All `YYYY-MM-DD` date values are rendered as date badges in edit preview and read-only view
