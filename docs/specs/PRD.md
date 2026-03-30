@@ -12,33 +12,41 @@
   - [2.2 System Actors](#22-system-actors)
 - [3. Operational Concept & Environment](#3-operational-concept--environment)
   - [3.1 Module-Specific Environment Constraints](#31-module-specific-environment-constraints)
-- [4. Scope](#4-scope)
-  - [4.1 In Scope](#41-in-scope)
-  - [4.2 Out of Scope](#42-out-of-scope)
-- [5. Functional Requirements](#5-functional-requirements)
-  - [5.1 Repository & Space Navigation](#51-repository--space-navigation)
-  - [5.2 Live Document Editing](#52-live-document-editing)
-  - [5.3 Contextual Inline Comments](#53-contextual-inline-comments)
-  - [5.4 Change Review Workflow](#54-change-review-workflow)
-  - [5.5 Rich Content Previews](#55-rich-content-previews)
-  - [5.6 Document Validation](#56-document-validation)
-  - [5.7 Git Synchronisation](#57-git-synchronisation)
-  - [5.8 Search](#58-search)
-  - [5.9 JIRA Integration](#59-jira-integration)
-  - [5.10 Access Control](#510-access-control)
-- [6. Non-Functional Requirements](#6-non-functional-requirements)
-  - [6.1 Module-Specific NFRs](#61-module-specific-nfrs)
-  - [6.2 NFR Exclusions](#62-nfr-exclusions)
-- [7. Public Library Interfaces](#7-public-library-interfaces)
-  - [7.1 Public API Surface](#71-public-api-surface)
-  - [7.2 External Integration Contracts](#72-external-integration-contracts)
-- [8. Use Cases](#8-use-cases)
+- [4. Competitors & Industry Analysis](#4-competitors--industry-analysis)
+  - [4.1 VCS Integration Patterns](#41-vcs-integration-patterns)
+  - [4.2 Comment System Architecture](#42-comment-system-architecture)
+- [5. Scope](#5-scope)
+  - [5.1 In Scope](#51-in-scope)
+  - [5.2 Out of Scope](#52-out-of-scope)
+- [6. Functional Requirements](#6-functional-requirements)
+  - [6.1 Repository & Space Navigation](#61-repository--space-navigation)
+  - [6.2 Live Document Editing](#62-live-document-editing)
+  - [6.3 Contextual Inline Comments](#63-contextual-inline-comments)
+  - [6.4 Change Review Workflow](#64-change-review-workflow)
+  - [6.5 Rich Content Previews](#65-rich-content-previews)
+  - [6.6 Document Validation](#66-document-validation)
+  - [6.7 Git Synchronisation](#67-git-synchronisation)
+  - [6.8 Search](#68-search)
+  - [6.9 JIRA Integration](#69-jira-integration)
+  - [6.10 Access Control](#610-access-control)
+  - [6.11 VCS Integration](#611-vcs-integration)
+- [7. Non-Functional Requirements](#7-non-functional-requirements)
+  - [7.1 Module-Specific NFRs](#71-module-specific-nfrs)
+  - [7.2 NFR Exclusions](#72-nfr-exclusions)
+- [8. Public Library Interfaces](#8-public-library-interfaces)
+  - [8.1 Public API Surface](#81-public-api-surface)
+  - [8.2 External Integration Contracts](#82-external-integration-contracts)
+- [9. Use Cases](#9-use-cases)
   - [Edit and Commit a Document](#edit-and-commit-a-document)
-- [9. Acceptance Criteria](#9-acceptance-criteria)
-- [10. Dependencies](#10-dependencies)
-- [11. Assumptions](#11-assumptions)
-- [12. Risks](#12-risks)
-- [13. Open Questions](#13-open-questions)
+  - [Authenticate and Configure Git Credentials](#authenticate-and-configure-git-credentials)
+  - [Browse Repository File Tree](#browse-repository-file-tree)
+  - [View File Content with Inline Comments](#view-file-content-with-inline-comments)
+  - [View Pull Requests and Navigate to VCS Provider](#view-pull-requests-and-navigate-to-vcs-provider)
+- [10. Acceptance Criteria](#10-acceptance-criteria)
+- [11. Dependencies](#11-dependencies)
+- [12. Assumptions](#12-assumptions)
+- [13. Risks](#13-risks)
+- [14. Open Questions](#14-open-questions)
 
 <!-- /toc -->
 
@@ -109,6 +117,7 @@ The result is fragmented knowledge: stale wiki pages that no longer reflect the 
 |------|------------|
 | Space | A top-level organisational unit that groups related documents, optionally linked to a Git repository |
 | Document | A file (typically Markdown) stored within a Space, version-controlled through Git |
+| VCS Provider | An external version control system hosting service (e.g., GitHub, Bitbucket Server) accessed via an abstract pluggable interface; v1 supports GitHub and Bitbucket Server, and the interface allows further providers to be added without changing application logic |
 | Inline Comment | An annotation anchored to a line range within a Document, visible to all readers |
 | Pending Change | A proposed edit submitted by a Commenter for review and approval by an Editor or Admin |
 | Change Record | An immutable audit entry created each time a Document is saved or synced |
@@ -162,11 +171,11 @@ The result is fragmented knowledge: stale wiki pages that no longer reflect the 
 
 **ID**: `cpt-cyberwiki-actor-git-repo`
 
-**Role**: External source-of-truth for document content; the platform reads from and writes to repositories via Git protocols.
+**Role**: External source-of-truth for document content; the platform reads from and writes to repositories via a pluggable VCS backend. In v1 the supported VCS providers are GitHub and Bitbucket Server; the abstract provider interface allows additional providers to be added in future versions.
 
-**Integration**: Bidirectional — platform reads content (Git → Wiki) and writes commits (Wiki → Git) via SSH/HTTPS Git protocols.
+**Integration**: Bidirectional — platform reads content (Git → Wiki) and writes commits (Wiki → Git) via the VCS provider's API. Provider selection and base URL are configurable per user.
 
-**Availability**: If the Git provider is unreachable, the platform operates in read-only mode; sync operations are queued and retried when connectivity is restored.
+**Availability**: If the VCS provider is unreachable, the platform operates in read-only mode; sync operations are queued and retried when connectivity is restored.
 
 #### JIRA Instance
 
@@ -200,9 +209,33 @@ The platform operates in a staging environment in v1; a production-grade deploym
 
 ---
 
-## 4. Scope
+## 4. Competitors & Industry Analysis
 
-### 4.1 In Scope
+### 4.1 VCS Integration Patterns
+
+Modern documentation platforms implement VCS integration using two distinct architectural patterns: **Build-time Extraction** (static, exemplified by Docusaurus) and **Dynamic/API-driven Fetching** (real-time, exemplified by Fumadocs).
+
+**Architectural Decision**: Cyber Wiki adopts the **Dynamic/API Integration pattern** as the primary VCS integration strategy. The system **MUST** implement VCS integration using the Dynamic/API pattern, fetching content, metadata, and repository information from VCS provider APIs at runtime rather than during build-time extraction.
+
+**Rationale**: Real-time accuracy, decoupled updates, live collaboration features (inline comments, PR reviews), and metadata richness require dynamic API access. This enables the "Living Document" model where changes pushed to the VCS provider appear in the platform within seconds.
+
+**For detailed analysis, options considered, and implementation notes, see**: [`ADR-001: VCS Integration Pattern`](./ADR/001-vcs-integration-pattern.md)
+
+### 4.2 Comment System Architecture
+
+Modern platforms use various comment system architectures: third-party services (Disqus), VCS-backed storage (Giscus, GitHub Discussions), and enterprise wikis (Confluence).
+
+**Architectural Decision**: Cyber Wiki adopts a **database-native comment system** with Confluence-like inline comment UX and deep Git integration. Comments **MUST** be stored in the platform database with VCS metadata. Comments **cannot be stored on external servers**.
+
+**Rationale**: Line-level anchoring, comments visible with ongoing PR changes, multi-VCS support, access control flexibility, and Confluence-like UX require database-native storage with full control over comment lifecycle and line-anchoring algorithms.
+
+**For detailed analysis, options considered, and comparative table, see**: [`ADR-002: Comment System Architecture`](./ADR/002-comment-system-architecture.md)
+
+---
+
+## 5. Scope
+
+### 5.1 In Scope
 
 - Web-based browsing and editing of Git-backed documents (Markdown focus)
 - Live editing with immediate rich preview (Markdown, diagrams, tables)
@@ -210,13 +243,15 @@ The platform operates in a staging environment in v1; a production-grade deploym
 - Pending Changes workflow: propose → review → approve/reject
 - Immutable change history per document
 - Bidirectional Git synchronisation with configurable direction and schedule
+- Pluggable VCS backend: GitHub and Bitbucket Server supported in v1; abstract interface supports adding further providers (GitLab, Azure DevOps) without changing application logic
+- Repository browsing, file tree navigation, and pull request listing via the VCS provider interface
 - Configurable document validators (link checking, schema validation, custom rules)
 - JIRA integration: inline status badges, issue views (grid, chart, Gantt), and issue search within the app
 - Full-text and semantic (AI-powered) search across all accessible documents
 - Access control inherited from Git repository permissions
 - Self-hosted, single-team deployment
 
-### 4.2 Out of Scope
+### 5.2 Out of Scope
 
 - Production deployment (staging only in v1)
 - Mobile native applications
@@ -227,9 +262,9 @@ The platform operates in a staging environment in v1; a production-grade deploym
 
 ---
 
-## 5. Functional Requirements
+## 6. Functional Requirements
 
-### 5.1 Repository & Space Navigation
+### 6.1 Repository & Space Navigation
 
 #### Browse Repositories and Spaces
 
@@ -464,13 +499,30 @@ The system **MUST** support threaded replies to inline comments (one level of ne
 
 - [ ] `p1` - **ID**: `cpt-cyberwiki-fr-comment-storage`
 
-The system **MUST** persist inline comments in a configurable storage location: either (1) in a dedicated location within the repository, (2) in a dedicated separate repository, or (3) in a database. The storage location **MUST** be configurable to allow teams to choose the approach that best fits their security and access control requirements.
+The system **MUST** persist all inline comments in the platform database. This storage configuration applies to **all inline comments** in the platform, including:
+- Comments on Cyber Wiki documents
+- Comments on VCS provider files (source code, configuration files, etc.)
+- Comments on pull request diffs (if in-platform PR review is implemented in phase 2)
 
-**Rationale**: Making comment storage configurable keeps the security and access model simple by allowing teams to leverage existing Git repository permissions for comment access control (by storing comments in Git), or to use a separate cyber-wiki-comments repository with its own access controls, or to use a database for simpler management. This flexibility avoids the need to build complex permission systems within the platform itself.
+Each comment **MUST** be stored with the following metadata to enable retrieval and line anchoring:
+- VCS provider identifier (e.g., `bitbucket_server`, `github`)
+- Project key / organization
+- Repository slug / name
+- Branch name
+- File path
+- Line range (start and end line numbers)
+- Comment content and author
+- Timestamp and status (open, resolved, deleted)
 
-**Actors**: `cpt-cyberwiki-actor-git-repo`
+**Access Control**: All authenticated users can comment on any file they can view, regardless of Git repository write permissions. The platform manages comment access control independently through its own permission system.
 
-### 5.4 Change Review Workflow
+**Rationale**: Database storage provides simple, centralized comment management without requiring Git write access for commenters. This enables the Commenter role to participate in reviews without needing repository write permissions, and avoids the complexity of syncing comments back to Git repositories.
+
+**Actors**: `cpt-cyberwiki-actor-editor`, `cpt-cyberwiki-actor-commenter`, `cpt-cyberwiki-actor-viewer`
+
+**Note**: The architectural decision for comment system architecture, including detailed analysis of alternative approaches (Disqus, Giscus, GitHub Discussions, Confluence) and comparative evaluation, is documented in [`ADR-002: Comment System Architecture`](./ADR/002-comment-system-architecture.md).
+
+### 6.4 Change Review Workflow
 
 #### Propose Pending Changes
 
@@ -596,9 +648,9 @@ The system **MUST** support pluggable custom validators (e.g., CTI-specific rule
 
 - [ ] `p1` - **ID**: `cpt-cyberwiki-fr-git-sync`
 
-The system **MUST** support bidirectional synchronisation between a Space and a linked Git repository, with configurable sync direction (repository → wiki, wiki → repository, or both) and schedule.
+The system **MUST** support bidirectional synchronisation between a Space and a linked Git repository, with configurable sync direction (repository → wiki, wiki → repository, or both) and schedule. All sync operations **MUST** be performed through the pluggable VCS interface (`cpt-cyberwiki-fr-vcs-backend`) so that sync works consistently across all supported VCS providers.
 
-**Rationale**: Git is the source of truth; the sync keeps the platform in alignment with changes made via other Git clients and ensures edits made in the wiki reach the repository.
+**Rationale**: Git is the source of truth; the sync keeps the platform in alignment with changes made via other Git clients and ensures edits made in the wiki reach the repository. Routing sync through the VCS provider interface ensures it benefits from the same provider abstraction as browsing and PR listing.
 
 **Actors**: `cpt-cyberwiki-actor-admin`, `cpt-cyberwiki-actor-git-repo`, `cpt-cyberwiki-actor-ci`
 
@@ -672,17 +724,219 @@ The system **MUST** allow users to search JIRA issues from within the platform w
 
 - [ ] `p1` - **ID**: `cpt-cyberwiki-fr-authentication`
 
-The system **MUST** authenticate all users before granting access to any space or document; the platform **MUST** support at minimum username/password authentication and **SHOULD** support SSO/OIDC integration for teams using an identity provider.
+The system **MUST** authenticate all users before granting access to any space or document; the platform **MUST** support SSO/OIDC integration for user authentication. Username/password authentication is explicitly out of scope for v1.
 
-**Rationale**: Authentication is required to inherit Git repository permissions; SSO reduces credential management overhead for engineering teams already using an identity provider.
+**Rationale**: SSO/OIDC authentication eliminates credential storage risks and integrates with existing enterprise identity providers, providing a consistent security model across the platform.
 
 **Actors**: `cpt-cyberwiki-actor-admin`, `cpt-cyberwiki-actor-editor`, `cpt-cyberwiki-actor-commenter`, `cpt-cyberwiki-actor-viewer`
 
+### 5.11 VCS Integration
+
+#### VCS Provider Authentication
+
+- [ ] `p1` - **ID**: `cpt-cyberwiki-fr-vcs-authentication`
+
+The system **MUST** support SSO-based authentication for VCS providers without storing user credentials. For v1, the system **MUST** support:
+
+1. **Bitbucket** - Authentication through ZTA (Zero Trust Access) tokens
+2. **GitHub** - Standard OAuth app authentication through GitHub
+
+Both authentication methods **MUST NOT** require credentials to be stored by the platform. The system **MUST** leverage provider-native authentication flows where users authenticate directly with the VCS provider.
+
+**Rationale**: SSO-based authentication eliminates the security risk of storing credentials while providing seamless access to Git repositories. ZTA tokens for Bitbucket and OAuth for GitHub are standard enterprise authentication patterns that do not require credential storage.
+
+**Note**: Credential storage for Confluence, JIRA, and other services may be addressed in future ADR/DESIGN documents if required.
+
+**Actors**: `cpt-cyberwiki-actor-admin`, `cpt-cyberwiki-actor-editor`
+
+#### Pluggable VCS Backend
+
+- [ ] `p1` - **ID**: `cpt-cyberwiki-fr-vcs-backend`
+
+The system **MUST** support GitHub and Bitbucket Server as VCS providers, and **MUST** implement provider integration through an abstract interface so that additional providers (GitLab, Azure DevOps) can be added without changing the consuming application logic. Each provider **MUST** be selectable per user with a configurable base URL to support self-hosted instances.
+
+**Rationale**: Engineering teams run a variety of self-hosted or cloud VCS platforms; a pluggable interface prevents vendor lock-in and enables incremental provider coverage.
+
+**Actors**: `cpt-cyberwiki-actor-admin`, `cpt-cyberwiki-actor-editor`
+
+#### VCS Provider Interface Contract
+
+- [ ] `p1` - **ID**: `cpt-cyberwiki-fr-vcs-interface`
+
+The abstract VCS provider interface **MUST** define the following operations to support the requirements in section 5.11. Each VCS provider implementation (GitHub, Bitbucket Server) **MUST** implement these operations:
+
+**Required Operations**:
+1. `listRepositories(page, pageSize)` → Returns paginated list of repositories accessible to the authenticated user, including repository name, description, default branch, and last update timestamp
+2. `getBranches(repoId)` → Returns list of branches for a repository, including branch name and whether it is the default branch
+3. `getDirectoryContents(repoId, branch, path)` → Returns list of files and directories at the specified path, including name, type (file/directory), size, last modified date, and last author
+4. `getFileContent(repoId, branch, path)` → Returns file content as text or binary, with detected MIME type
+5. `listPullRequests(repoId, state, page, pageSize)` → Returns paginated list of pull requests filtered by state (open/merged/declined), including PR number, title, author, source/target branches, age, commit count, and LoC delta
+
+**Optional Operations** (for phase 2 in-platform PR review):
+6. `getPullRequestFiles(repoId, prId)` → Returns list of changed files in a PR with addition/deletion counts per file
+7. `getPullRequestDiff(repoId, prId, filePath)` → Returns diff hunks for a specific file in a PR with line-level changes
+
+**Optional Operations** (for Git blame feature):
+8. `getBlame(repoId, branch, path)` → Returns per-line authorship information (author, commit SHA, date) for a file
+
+**Interface Requirements**:
+- Each operation **MUST** accept a configurable base URL for self-hosted instances
+- Each operation **MUST** use the authenticated user's OAuth token or ZTA token for authorization
+- Pagination **MUST** follow a consistent pattern (page number + page size or cursor-based)
+- Error handling **MUST** distinguish between: authentication failures (401), authorization failures (403), not found (404), and provider errors (5xx)
+- All operations **MUST** return structured data types (not raw API responses) to decouple consuming code from provider-specific formats
+
+**Rationale**: A concrete interface contract ensures consistent behavior across VCS provider implementations and enables implementers to know exactly what operations to support. This contract supports all functional requirements in section 5.11 while allowing optional operations to be deferred to phase 2.
+
+**Actors**: `cpt-cyberwiki-actor-admin`, `cpt-cyberwiki-actor-editor`
+
+#### Repository Listing and Search
+
+- [ ] `p1` - **ID**: `cpt-cyberwiki-fr-repo-listing`
+
+The system **MUST** list all repositories accessible via the user's configured VCS token, with support for pagination and name/description search. The system **MUST** allow users to mark repositories as favourites (persisted per user) and track recently viewed repositories (last 10, auto-pruned), with favourites surfaced first in the listing.
+
+**Rationale**: Teams with dozens or hundreds of repositories need fast discovery; favourites and recents reduce the time to reach frequently-accessed repos to zero.
+
+**Actors**: `cpt-cyberwiki-actor-editor`, `cpt-cyberwiki-actor-commenter`, `cpt-cyberwiki-actor-viewer`
+
+#### Branch Browsing and File Tree Navigation
+
+- [ ] `p1` - **ID**: `cpt-cyberwiki-fr-file-tree-navigation`
+
+The system **MUST** display a repository's directory tree for any selectable branch, including last-modified date and last-author metadata per entry where available from the VCS provider. The system **MUST** support recursive directory drill-down and display files that exist only in open pull requests (phantom files) as a distinct visual type within the tree.
+
+**Rationale**: Navigating a repository as a browsable file tree — rather than raw clone output — is the expected interaction model for non-Git-client users; last-author/date metadata provides provenance context without requiring a separate blame query.
+
+**Actors**: `cpt-cyberwiki-actor-editor`, `cpt-cyberwiki-actor-commenter`, `cpt-cyberwiki-actor-viewer`
+
+#### File Content Display with Syntax Highlighting
+
+- [ ] `p1` - **ID**: `cpt-cyberwiki-fr-file-content-display`
+
+The system **MUST** render the content of any text file from a Git repository with syntax highlighting appropriate to the file's detected language. The system **MUST** display line numbers and allow the user to select individual lines or line ranges as the basis for inline comments.
+
+**Rationale**: Syntax-highlighted, line-numbered file viewing is the baseline expectation for any developer-facing tool; line selection is required for attaching contextual comments.
+
+**Actors**: `cpt-cyberwiki-actor-editor`, `cpt-cyberwiki-actor-commenter`, `cpt-cyberwiki-actor-viewer`
+
+#### Git Blame
+
+- [ ] `p2` - **ID**: `cpt-cyberwiki-fr-git-blame`
+
+The system **MUST** display per-line authorship (author name, commit SHA, commit date) for any file from a Git repository, sourced directly from the VCS provider's blame API.
+
+**Rationale**: Blame information is essential for understanding who introduced a specific line of code or content and when, enabling faster triage and accountability without leaving the platform.
+
+**Actors**: `cpt-cyberwiki-actor-editor`, `cpt-cyberwiki-actor-viewer`
+
+#### Pull Request Listing and External View
+
+- [ ] `p1` - **ID**: `cpt-cyberwiki-fr-pr-listing`
+
+The system **MUST** list pull requests for a repository (filterable by state: open / merged / declined, and by search query) and display each PR's metadata: title, author, source and target branches, age, commit count, lines-of-code delta, reviewer count, and comment count. The system **MUST** provide a "View on [VCS Provider]" link for each PR that opens the PR in the VCS provider's native interface.
+
+**Rationale**: Viewing PRs in the native VCS provider interface leverages existing, mature PR review tools without requiring complex in-platform diff rendering. This reduces implementation complexity for v1 while still providing PR visibility and quick access.
+
+**Actors**: `cpt-cyberwiki-actor-editor`, `cpt-cyberwiki-actor-commenter`
+
+#### In-Platform Pull Request Diff Review
+
+- [ ] `p3` - **ID**: `cpt-cyberwiki-fr-pr-diff-review`
+
+**(Phase 2 / Future)** The system **MAY** allow users to open a PR within the platform, view its changed-files list (with addition/deletion counts per file), select a file to view its full diff with hunk-level navigation (previous/next chunk), and see deletion and addition lines distinguished by background colour with old and new line numbers.
+
+**Rationale**: In-platform PR review would remove the need to switch to the Git host for reviewing proposed changes, but is deferred to phase 2 to reduce v1 complexity. The external view link provides sufficient functionality for v1.
+
+**Actors**: `cpt-cyberwiki-actor-editor`, `cpt-cyberwiki-actor-commenter`
+
+#### API Token Management
+
+- [ ] `p2` - **ID**: `cpt-cyberwiki-fr-api-token-management`
+
+The system **MUST** allow users to create, list, and delete named personal API tokens that can be used to authenticate programmatic access (CI, scripts) to the platform. API tokens **MUST** be distinct from the VCS provider OAuth/ZTA tokens.
+
+**Token Format**:
+- Tokens **MUST** be opaque random strings with minimum 128 bits of entropy (e.g., UUID v4 or cryptographically secure random bytes encoded as base64)
+- Tokens **MUST** be prefixed with a version identifier (e.g., `cwt_v1_`) to enable format evolution
+
+**Token Expiration**:
+- Default lifetime **MUST** be 90 days
+- Maximum lifetime **MUST** be 365 days
+- Users **MAY** specify custom expiration at creation time within the maximum limit
+- Expired tokens **MUST** be rejected immediately with a 401 Unauthorized response
+
+**Token Scope**:
+- For v1, tokens **MUST** grant full user-level access (same permissions as the creating user's interactive session)
+- Scope model for future versions **MAY** include role-limited, repository-scoped, or granular read/write scopes
+- Token scope **MUST** be stored with the token and enforced on every API request
+
+**Token Revocation**:
+- Revocation **MUST** take effect immediately (no grace period)
+- Revoked tokens **MUST** be rejected with a 401 Unauthorized response
+- Token validation **MUST** check revocation status on every request (no client-side caching of token validity)
+
+**Audit Events**:
+- The system **MUST** log the following events with timestamp, actor (user ID), and token ID:
+  - Token creation (including token name and expiration)
+  - Token usage (API endpoint accessed, success/failure)
+  - Token revocation (including whether revoked by owner or admin)
+- Audit logs **MUST** be retained for at least 90 days
+
+**Rationale**: CI pipelines and scripts need a stable, revocable credential that does not expose the user's primary Git token; named tokens with individual revocation capability provide that without requiring service accounts. Explicit token format, expiration, scope, and auditing requirements enable implementers to design secure storage, validation, and enforcement mechanisms.
+
+**Actors**: `cpt-cyberwiki-actor-admin`, `cpt-cyberwiki-actor-editor`
+
+#### Comment Line-Anchoring Algorithm
+
+- [ ] `p1` - **ID**: `cpt-cyberwiki-fr-comment-line-anchoring`
+
+The system **MUST** implement a line-anchoring algorithm that tracks the current position of an inline comment as the file it is attached to evolves.
+
+**Capture Phase** (at comment creation):
+1. Normalize the commented line: trim leading/trailing whitespace, optionally normalize case (configurable)
+2. Store the normalized line string as the primary identifier
+3. Store the `original_line_number`
+4. Capture N context lines before and after (default N=3), each normalized using the same rules
+
+**Matching Phase** (on every file view):
+1. **Exact line matching**: Search the entire current file for exact matches of the normalized commented line
+   - If **single match** found:
+     - At same line number → status = `anchored`, `computed_line_number` = `original_line_number`
+     - At different line number → status = `moved`, `computed_line_number` = new line number
+   - If **multiple matches** found:
+     - Select the match nearest to `original_line_number` (minimum absolute distance)
+     - If multiple matches are equidistant, use diff-based position tracer (optional) or select the first occurrence
+     - Report status = `moved` if selected line differs from `original_line_number`, otherwise `anchored`
+   - If **no exact match** found → proceed to step 2
+
+2. **Context-window matching**: Attempt to locate the comment using surrounding context lines
+   - For each position in the file, count how many of the K captured context lines (before + after) match at that position
+   - If at least M of K context lines match (configurable majority rule, default M=ceil(K/2)):
+     - Status = `outdated`, `computed_line_number` = best-match position
+   - If no position meets the threshold → status = `deleted`, `computed_line_number` = null
+
+**Status Definitions**:
+- `anchored` — Exact normalized line found at the original position
+- `moved` — Exact normalized line found at a different position
+- `outdated` — Exact line not found, but context lines match (comment may be stale)
+- `deleted` — Neither exact line nor sufficient context can be located
+
+**Configuration Options**:
+- Line normalization: whitespace handling (trim, collapse, ignore), case sensitivity
+- Context window size N (default 3 lines before/after)
+- Context match threshold M/K (default majority: ceil(K/2))
+- Diff-based position tracer: optional fallback for disambiguation (conservative outdating)
+
+**Rationale**: Comments that silently disappear after file edits destroy review continuity. A deterministic line-normalization + exact string matching algorithm with context-window fallback provides resilient anchoring that survives reformatting, line insertions, and moderate refactors without requiring a full diff-apply engine. Explicit normalization rules and matching steps enable consistent implementation across the platform.
+
+**Actors**: `cpt-cyberwiki-actor-editor`, `cpt-cyberwiki-actor-commenter`, `cpt-cyberwiki-actor-viewer`
+
 ---
 
-## 6. Non-Functional Requirements
+## 7. Non-Functional Requirements
 
-### 6.1 Module-Specific NFRs
+### 7.1 Module-Specific NFRs
 
 #### Search Response Time
 
@@ -703,6 +957,16 @@ The system **MUST** complete a document save (validation + write) in under 3 sec
 **Threshold**: ≤ 3 000 ms, document ≤ 500 KB
 
 **Rationale**: A slow save loop breaks the editing flow and discourages frequent incremental saves.
+
+#### Repository List and Search Performance
+
+- [ ] `p1` - **ID**: `cpt-cyberwiki-nfr-repo-list-performance`
+
+The system **MUST** display the repository list and return search results in under 1 second at p95 for users with access to up to 500 repositories. The system **MUST** implement repository list caching to avoid repeated API calls to the VCS provider on every page load.
+
+**Threshold**: ≤ 1 000 ms at p95, ≤ 500 repositories per user
+
+**Rationale**: Users frequently navigate between repositories and return to the repository list; without caching, every navigation would trigger a slow API call to the VCS provider, degrading the user experience. Caching enables instant repository list display and fast search filtering.
 
 #### Availability
 
@@ -736,7 +1000,29 @@ The system **MUST** be operable by non-engineers (product managers, designers) w
 
 **Note**: WCAG 2.1 AA accessibility compliance is not required in v1 (internal tool, known engineering user base); deferred to production deployment.
 
-### 6.2 NFR Exclusions
+#### Credential Security
+
+- [ ] `p1` - **ID**: `cpt-cyberwiki-nfr-credential-security`
+
+All user credentials stored by the platform — including Confluence tokens and JIRA tokens — **MUST** be encrypted at rest using symmetric encryption with a key that is never stored alongside the data. The plaintext of any credential **MUST NOT** be written to the database, application logs, or any audit record. The application **MUST** use a configurable encryption key (distinct from the application secret key) so that key rotation is possible without re-deploying the application.
+
+**Note**: VCS provider access tokens (GitHub OAuth, Bitbucket ZTA) are not stored by the platform; they are obtained via the provider's OAuth/SSO flow and held only for the duration of the user session. This NFR applies to any service credentials (e.g., Confluence, JIRA) that require persistent storage.
+
+**Threshold**: Zero stored credentials in plaintext; encryption key is externally configurable
+
+**Rationale**: User credentials for external services are high-value secrets; accidental database exposure must not also expose Git or JIRA tokens. A configurable, separately managed key enables key rotation and meets baseline secret-management expectations for an internal engineering tool.
+
+#### Theme and Personalisation
+
+- [ ] `p2` - **ID**: `cpt-cyberwiki-nfr-theme`
+
+The system **MUST** support light and dark display themes selectable per user. The selected theme **MUST** be persisted and applied consistently across all views without requiring a page reload.
+
+**Threshold**: Light and dark themes available; preference persisted per user
+
+**Rationale**: Dark mode is a standard expectation for developer-facing tools; per-user persistence avoids repeated reconfiguration.
+
+### 7.2 NFR Exclusions
 
 - **Multi-region availability**: Not applicable in v1 — single-node staging deployment only.
 - **Horizontal scalability under high load**: Not applicable in v1 — single-team usage, no public traffic.
@@ -744,24 +1030,24 @@ The system **MUST** be operable by non-engineers (product managers, designers) w
 
 ---
 
-## 7. Public Library Interfaces
+## 8. Public Library Interfaces
 
-### 7.1 Public API Surface
+### 8.1 Public API Surface
 
 Not applicable — Cyber Wiki is an end-user web application, not a library. It does not expose a programmatic API surface for external consumers in v1.
 
-### 7.2 External Integration Contracts
+### 8.2 External Integration Contracts
 
 Cyber Wiki depends on the following external integration contracts:
 
-- **Git Provider**: Reads and writes document content over standard Git protocols (SSH/HTTPS). No custom API contract; standard Git wire protocol applies.
+- **VCS Provider**: Reads and writes document content over standard Git protocols (SSH/HTTPS). No custom API contract; standard Git wire protocol applies.
 - **JIRA REST API**: Consumes JIRA issue data (status, assignee, priority, summary) via the JIRA Cloud/Server REST API; contract format TBD in DESIGN.
 - **Embedding Service**: Sends document text and receives vector embeddings; contract format (input schema, vector dimensions, batch size) TBD in DESIGN.
 - **Vector Database**: Stores and queries document embeddings for semantic search; query protocol and index format TBD in DESIGN.
 
 ---
 
-## 8. Use Cases
+## 9. Use Cases
 
 ### Edit and Commit a Document
 
@@ -792,7 +1078,129 @@ Cyber Wiki depends on the following external integration contracts:
 
 ---
 
-## 9. Acceptance Criteria
+### Authenticate and Configure Git Credentials
+
+- [ ] `p1` - **ID**: `cpt-cyberwiki-usecase-auth-configure`
+
+**Actor**: `cpt-cyberwiki-actor-editor`, `cpt-cyberwiki-actor-admin`
+
+**Preconditions**:
+- User has a valid account in the enterprise identity provider (SSO/OIDC)
+
+**Main Flow**:
+1. User navigates to the application
+2. System redirects to SSO/OIDC identity provider for authentication
+3. User authenticates with their enterprise credentials; identity provider redirects back with authentication token
+4. System validates the token and creates an authenticated session
+5. User navigates to the Profile settings page
+6. User selects a VCS provider (GitHub or Bitbucket Server) and enters the provider base URL
+7. User initiates OAuth flow for the selected VCS provider (GitHub OAuth or Bitbucket ZTA)
+8. VCS provider authenticates the user and grants access; system receives access token via OAuth callback
+9. System stores minimal session information; no credentials are stored
+
+**Postconditions**:
+- User session is active; all subsequent API calls are authenticated via SSO token
+- VCS provider access is established via OAuth/ZTA without credential storage
+
+**Alternative Flows**:
+- **SSO authentication failure**: System returns to login page with error message; user must retry authentication
+- **OAuth flow cancellation**: User cancels VCS provider OAuth; system notifies user that VCS access is not configured
+
+---
+
+### Browse Repository File Tree
+
+- [ ] `p1` - **ID**: `cpt-cyberwiki-usecase-browse-repo`
+
+**Actor**: `cpt-cyberwiki-actor-editor`, `cpt-cyberwiki-actor-viewer`, `cpt-cyberwiki-actor-commenter`
+
+**Preconditions**:
+- User is authenticated and has a valid Git token configured
+- At least one repository is accessible via the configured VCS provider
+
+**Main Flow**:
+1. User opens the Repositories view; system lists all accessible repositories (via configured VCS token)
+2. User can search repositories by name/description
+3. User marks a repository as a favourite (persisted per user); favourited repos appear at the top
+4. User opens a repository; system loads the default branch and displays the root directory tree
+5. User selects a branch from the branch dropdown; file tree reloads for the selected branch
+6. User navigates into subdirectories by clicking folder entries
+7. User selects a file; system fetches and displays file content
+
+**Postconditions**:
+- Selected file content is displayed in the file viewer
+- Repository is recorded in the user's recent-repos list (last 10 entries retained)
+
+**Alternative Flows**:
+- **No Git token configured**: System returns 401/422 with a message directing the user to configure credentials in Profile settings
+- **Repository not found**: System surfaces a 404 error with the repository path
+- **Provider rate limit**: System returns a 429 with a retry-after indication
+
+---
+
+### View File Content with Inline Comments
+
+- [ ] `p1` - **ID**: `cpt-cyberwiki-usecase-view-file-comments`
+
+**Actor**: `cpt-cyberwiki-actor-editor`, `cpt-cyberwiki-actor-commenter`, `cpt-cyberwiki-actor-viewer`
+
+**Preconditions**:
+- User is authenticated
+- User has navigated to a file in the repository file tree
+
+**Main Flow**:
+1. System fetches file content from the VCS provider and renders it with syntax highlighting
+2. User selects one or more lines in the rendered file; the "Add comment" action becomes available
+3. User types a comment and submits; system captures the commented line content and 2–3 lines of surrounding context for future anchoring
+4. System persists the comment with: line range, line content hash, context before/after, original line number, and anchoring status (`anchored`)
+5. System re-renders the comment panel showing all comments for the current file/branch
+6. On subsequent file views, system fetches current file content and runs the line-matching algorithm to compute current line positions for all comments:
+   - If the exact line content is found → status remains `anchored`, `computed_line_number` updated
+   - If the line has shifted position → status set to `moved`, new position reported
+   - If the line content is no longer found but context matches → status set to `outdated`
+   - If neither line nor context match → status set to `deleted`
+7. User can edit or delete their own comments (ownership enforced); status can be toggled to `resolved`
+
+**Postconditions**:
+- Comment is persisted against the VCS provider + project + repo + branch + file path coordinates
+- All future views of the same file show the comment at the dynamically computed current line position
+
+**Alternative Flows**:
+- **File content unavailable** (provider error): System falls back to displaying comments at their original line numbers without recomputing positions
+- **Comment by non-owner**: System returns 403 on attempted edit or delete
+
+---
+
+### View Pull Requests and Navigate to VCS Provider
+
+- [ ] `p1` - **ID**: `cpt-cyberwiki-usecase-view-pr`
+
+**Actor**: `cpt-cyberwiki-actor-editor`, `cpt-cyberwiki-actor-commenter`
+
+**Preconditions**:
+- User is authenticated and has a valid Git token configured
+- The target repository has at least one pull request
+
+**Main Flow**:
+1. User opens a repository and switches to the "Pull Requests" tab
+2. System fetches PRs from the VCS provider and displays them with: title, author, source → target branch, age, commit count, LoC delta, reviewer count, and comment count
+3. User can filter PRs by search query, project, or repository; user can toggle between open/merged/declined states
+4. User clicks "View on [VCS Provider]" link for a PR
+5. System opens the PR in the VCS provider's native interface in a new tab
+
+**Postconditions**:
+- User is viewing the PR in the VCS provider's native review interface
+- User can perform all PR review actions (comment, approve, merge) in the VCS provider
+
+**Alternative Flows**:
+- **PR not found**: System shows a 404 error with the PR identifier
+- **No PRs available**: System shows an empty PR list with an informational message
+
+**Note**: In-platform PR diff review with hunk-level navigation is deferred to phase 2 (see `cpt-cyberwiki-fr-pr-diff-review`). For v1, all PR review actions are performed in the VCS provider's native interface.
+
+---
+
+## 10. Acceptance Criteria
 
 - [ ] An Editor can open, edit, and commit a Markdown document entirely from the browser without a local Git client
 - [ ] An Editor can apply standard formatting (bold, italic, strikethrough, links, lists) and see identical rendering in edit preview and read-only view
@@ -811,25 +1219,48 @@ Cyber Wiki depends on the following external integration contracts:
 - [ ] `[JIRA:KEY-123]` references render as inline badges showing live status, assignee, and priority
 - [ ] A Viewer cannot edit or propose changes to a document (access is denied)
 - [ ] All document saves are reflected as commits in the linked Git repository within the configured sync interval
+- [ ] A user can authenticate via SSO/OIDC; an active session is established and persisted across page reloads
+- [ ] A user can configure a VCS provider (GitHub or Bitbucket Server) and initiate OAuth authentication flow; access is granted without storing credentials
+- [ ] A user can create, list, and revoke named API tokens for programmatic access to the platform API
+- [ ] The Repositories view lists all repositories accessible via the user's Git token; the list is searchable by name/description
+- [ ] A user can mark any repository as a favourite; favourites appear at the top of the listing and persist across sessions
+- [ ] The system records the last 10 repositories opened by each user; this recent list is visible in the Repositories view
+- [ ] Opening a repository displays the default branch and root directory tree; the user can select any branch from a dropdown to reload the tree
+- [ ] A user can navigate into subdirectories by clicking folder entries; file entries added only in open pull requests are visually distinguished from committed files
+- [ ] Each file entry in the directory tree displays the last-modified date and last-author name where available from the VCS provider
+- [ ] Opening a file displays its content with syntax highlighting appropriate to the detected language and line numbers on every line
+- [ ] A user can view per-line authorship (author, commit SHA, date) for any file via a blame view
+- [ ] A user can select a line range in a file view and submit an inline comment; the comment appears anchored to that line range
+- [ ] After the commented file is modified, reopening the file re-computes the comment's current line position; the comment is marked `anchored`, `moved`, `outdated`, or `deleted` accordingly
+- [ ] A user can edit or delete only their own comments; attempting to modify another user's comment is rejected with a 403 error
+- [ ] Comment counts per file are displayed as badges in the directory tree listing
+- [ ] The Pull Requests tab lists open PRs for a repository with title, author, source→target branch, age, commit count, LoC delta, reviewer count, and comment count; the list is filterable by state (open / merged / declined) and searchable
+- [ ] Selecting a PR shows the list of changed files with per-file addition and deletion counts
+- [ ] Selecting a changed file in a PR renders its diff with old and new line numbers, context lines, deletion lines highlighted red, and addition lines highlighted green
+- [ ] The user can navigate between change hunks in a diff using previous/next chunk controls
+- [ ] A user can select a line in a PR diff and add an inline comment; the comment is persisted with the same line-anchoring metadata as file-view comments
+- [ ] A user can switch between GitHub and Bitbucket Server as their Git provider in Profile settings; all repository browsing, file tree navigation, and PR listing features work correctly for the selected provider without any code changes to the application logic
+- [ ] A user can configure a custom base URL for the selected Git provider to support self-hosted instances (e.g., an on-premises Bitbucket Server)
 
 ---
 
-## 10. Dependencies
+## 11. Dependencies
 
 | Dependency | Description | Criticality |
 |------------|-------------|-------------|
-| Git Provider | Hosts the source repositories; required for Git sync | p1 |
+| Git Provider | Pluggable backend; v1 supports GitHub and Bitbucket Server; abstract interface allows further providers | p1 |
 | JIRA Instance | Provides issue metadata for inline badges and search | p2 |
 | Vector Database | Stores document embeddings for semantic search | p1 |
 | Embedding Service | Generates vector embeddings from document content | p1 |
 
 ---
 
-## 11. Assumptions
+## 12. Assumptions
 
 - Teams operate a single self-hosted instance per team; multi-tenancy is not required in v1.
 - The primary document format is Markdown; support for other formats is not in scope for v1.
 - Git is always available as the underlying storage; the platform does not operate in an offline-first mode.
+- v1 supports exactly two Git providers: GitHub and Bitbucket Server. The pluggable provider interface allows additional providers (GitLab, Azure DevOps, etc.) to be added in future versions without changing application logic.
 - JIRA integration is optional; teams without JIRA can use the platform without configuring it.
 - The embedding/vector search service is available as an external dependency; the platform integrates with it rather than hosting its own model.
 - Staging deployment is the only target environment for v1; production hardening is deferred.
@@ -840,7 +1271,7 @@ Cyber Wiki depends on the following external integration contracts:
 
 ---
 
-## 12. Risks
+## 13. Risks
 
 | Risk | Impact | Mitigation |
 |------|--------|------------|
@@ -848,10 +1279,11 @@ Cyber Wiki depends on the following external integration contracts:
 | Semantic search quality is insufficient for domain-specific jargon | MEDIUM — users abandon search and fall back to manual browsing | Allow teams to tune embedding models or supplement with keyword search as a fallback |
 | Validator false positives block legitimate saves | MEDIUM — Editor frustration, validation bypassed | All validators must support an explicit override with a reason logged to the Change Record |
 | draw.io rendering adds significant bundle size or latency | LOW — slower page loads | Lazy-load the draw.io renderer only when a draw.io file is detected on the page |
+| Git provider API differences break the abstract interface contract | MEDIUM — a new provider behaves differently from the interface specification, causing silent failures or missing operations | Define the interface contract with explicit error semantics; validate each provider implementation against a shared test suite before release |
 
 ---
 
-## 13. Open Questions
+## 14. Open Questions
 
 | Question | Owner | Target Resolution |
 |----------|-------|-------------------|
@@ -860,3 +1292,7 @@ Cyber Wiki depends on the following external integration contracts:
 | Should draw.io rendering be client-side (draw.io JS SDK) or server-side? | TBD | Before DESIGN |
 | Should Git sync support webhook-triggered pushes in addition to polling? | TBD | Before DESIGN |
 | What is the expected maximum document corpus size beyond the 10,000 target? | TBD | Before M1 |
+| Should comment re-anchoring run on every file view, on a push webhook from the Git provider, or on a scheduled background job? | TBD | Before DESIGN |
+| Should users be able to see comments on repository files if they don't have access to view the repository itself? If yes, what information should be visible (comment content, file path, repository name)? | TBD | Before DESIGN |
+| Which Git providers beyond GitHub and Bitbucket Server are required for v1? | TBD | Before DESIGN |
+| For Bitbucket Server: should ZTA token refresh be fully automated (background renewal) or require a manual re-authenticate action in the UI? | TBD | Before DESIGN |
