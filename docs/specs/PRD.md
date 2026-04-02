@@ -107,7 +107,8 @@ The result is fragmented knowledge: stale wiki pages that no longer reflect the 
 - Validate documents against configurable rules before saving (Admins configure validation rules per Space to enforce link integrity, schema compliance, and custom domain-specific requirements; prevents broken links and malformed documents)
 - Synchronise document changes bidirectionally with Git repositories
 - Surface JIRA issue data (status, assignee, priority) inline in documents
-- Search documentation semantically using AI-powered embeddings
+- Full-text search across all documents with exact keyword matching, file/folder filtering, and highlighted results (basic search that works reliably first)
+- Optional semantic search using AI-powered embeddings for relevance-ranked results (enhancement for exploratory queries when exact keywords aren't known)
 - Edit Markdown with WYSIWYG editor — headings, styles, tables, links
 - Multi-repository documentation workspace (Admins configure which Git repositories are accessible as Spaces, which files/folders are discoverable, and how documents are organized; enables unified documentation access across multiple repositories without requiring users to know Git repository locations)
 - Configurable notification system for document changes (users subscribe to specific documents, folders, or Spaces; choose notification channels per subscription — email, Teams, Slack; prevents notification flooding by requiring explicit opt-in per document/folder)
@@ -803,11 +804,16 @@ The system **MUST** detect merge conflicts during sync and surface them to the c
 
 #### Full-Text Search
 
-- [ ] `p2` - **ID**: `cpt-cyberwiki-fr-fulltext-search`
+- [ ] `p1` - **ID**: `cpt-cyberwiki-fr-fulltext-search`
 
-The system **MUST** provide full-text search across all documents and spaces the requesting actor has access to, with results filterable by space and showing the document title, space name, a highlighted excerpt, and line number.
+The system **MUST** provide full-text search across all documents and spaces the requesting actor has access to. Search results **MUST** support:
 
-**Rationale**: Text search is a baseline requirement for any knowledge platform; without it, users cannot find documents they don't already know the path to.
+1. **Exact keyword matching** — find documents containing the exact search terms
+2. **File/folder filtering** — filter results by specific files, folders, or Spaces
+3. **Result highlighting** — show document title, space name, highlighted excerpt with matched terms, and line number
+4. **Search within results** — ability to determine if a specific term exists in a file/folder without ranking
+
+**Rationale**: Basic full-text search is the foundation requirement for any knowledge platform; without reliable keyword search that works consistently, users cannot find documents they need. This must work first before adding advanced features. Simple "does this term exist in this folder" queries are often more useful than relevance-ranked results.
 
 **Actors**: `cpt-cyberwiki-actor-editor`, `cpt-cyberwiki-actor-commenter`, `cpt-cyberwiki-actor-viewer`
 
@@ -815,9 +821,9 @@ The system **MUST** provide full-text search across all documents and spaces the
 
 - [ ] `p2` - **ID**: `cpt-cyberwiki-fr-semantic-search`
 
-The system **MUST** provide AI-powered semantic search using vector embeddings so that queries return conceptually relevant documents even when they do not share exact keywords with the query.
+The system **MAY** provide optional AI-powered semantic search using vector embeddings so that queries return conceptually relevant documents even when they do not share exact keywords with the query. Semantic search **MUST** be offered as an opt-in enhancement alongside full-text search, not as a replacement.
 
-**Rationale**: Keyword search fails for exploratory queries and synonyms; semantic search dramatically improves the quality of results for engineering documentation, which is dense with jargon and acronyms.
+**Rationale**: Semantic search is useful for exploratory queries when exact keywords aren't known, but it should not replace basic keyword search. Sometimes users just want to know if a specific term exists in a file/folder without AI-powered relevance ranking. Semantic search is an enhancement, not a requirement for v1.
 
 **Actors**: `cpt-cyberwiki-actor-editor`, `cpt-cyberwiki-actor-commenter`, `cpt-cyberwiki-actor-viewer`
 
