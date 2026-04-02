@@ -102,6 +102,7 @@ The result is fragmented knowledge: stale wiki pages that no longer reflect the 
 - VS Code extension for IDE-native access to documentation browsing, editing, and commenting
 - REST API access for AI agents (CyPilot) to read, search, and analyze documentation content
 - Leave context-aware inline comments that survive content changes (comments are flagged when anchored text is removed)
+- Document-level comments displayed at page bottom (Confluence-style end-of-page comments for general feedback not tied to specific lines)
 - Preview rich content: Markdown, sequence diagrams, draw.io diagrams, tables
 - Validate documents against configurable rules before saving (Admins configure validation rules per Space to enforce link integrity, schema compliance, and custom domain-specific requirements; prevents broken links and malformed documents)
 - Synchronise document changes bidirectionally with Git repositories
@@ -618,6 +619,16 @@ The system **MUST** support threaded replies to inline comments (one level of ne
 **Rationale**: Threaded replies allow back-and-forth resolution of a concern without creating new top-level comments, keeping the review gutter readable.
 
 **Actors**: `cpt-cyberwiki-actor-editor`, `cpt-cyberwiki-actor-admin`, `cpt-cyberwiki-actor-commenter`
+
+#### Document-Level Comments
+
+- [ ] `p1` - **ID**: `cpt-cyberwiki-fr-document-level-comments`
+
+The system **MUST** support document-level comments that are anchored to the document as a whole rather than to specific line ranges. Document-level comments **MUST** be displayed in a dedicated section at the bottom of the document page (Confluence-style end-of-page comments). Document-level comments **MUST** support the same features as inline comments: threaded replies, resolve/delete actions, and author/timestamp metadata.
+
+**Rationale**: Not all feedback is tied to specific lines — general observations, overall document quality feedback, high-level questions, and cross-cutting concerns are better expressed as document-level comments. Displaying these at the page bottom (Confluence pattern) keeps them separate from inline comments, reducing clutter in the line-anchored comment gutter while ensuring general feedback is not lost. This serves reviewers who want to provide holistic feedback without forcing them to pick an arbitrary line to anchor to.
+
+**Actors**: `cpt-cyberwiki-actor-editor`, `cpt-cyberwiki-actor-commenter`, `cpt-cyberwiki-actor-viewer`
 
 #### Comment Storage
 
