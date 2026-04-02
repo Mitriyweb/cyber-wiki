@@ -76,7 +76,7 @@ The result is fragmented knowledge: stale wiki pages that no longer reflect the 
 **Key Problems Solved:**
 
 - Fragmentation between source code and documentation
-- High friction for non-engineers to contribute to or comment on technical docs
+- High friction for non-engineers to contribute to or comment on any Git-hosted documents (including PRDs, requirements, use cases, design docs, and technical documentation)
 - Lack of in-context JIRA visibility — readers must context-switch to find ticket status
 - No enforcement mechanism for document quality or link integrity
 - Semantic search is unavailable across Git-hosted documentation
