@@ -20,16 +20,17 @@
   - [5.2 Out of Scope](#52-out-of-scope)
 - [6. Functional Requirements](#6-functional-requirements)
   - [6.1 Repository & Space Navigation](#61-repository--space-navigation)
-  - [6.2 Live Document Editing](#62-live-document-editing)
-  - [6.3 Contextual Inline Comments](#63-contextual-inline-comments)
-  - [6.4 Change Review Workflow](#64-change-review-workflow)
-  - [6.5 Rich Content Previews](#65-rich-content-previews)
-  - [6.6 Document Validation](#66-document-validation)
-  - [6.7 Git Synchronisation](#67-git-synchronisation)
-  - [6.8 Search](#68-search)
-  - [6.9 JIRA Integration](#69-jira-integration)
-  - [6.10 Access Control](#610-access-control)
-  - [6.11 VCS Integration](#611-vcs-integration)
+  - [6.2 IDE Integration](#62-ide-integration)
+  - [6.3 Live Document Editing](#63-live-document-editing)
+  - [6.4 Contextual Inline Comments](#64-contextual-inline-comments)
+  - [6.5 Change Review Workflow](#65-change-review-workflow)
+  - [6.6 Rich Content Previews](#66-rich-content-previews)
+  - [6.7 Document Validation](#67-document-validation)
+  - [6.8 Git Synchronisation](#68-git-synchronisation)
+  - [6.9 Search](#69-search)
+  - [6.10 JIRA Integration](#610-jira-integration)
+  - [6.11 Access Control](#611-access-control)
+  - [6.12 VCS Integration](#612-vcs-integration)
 - [7. Non-Functional Requirements](#7-non-functional-requirements)
   - [7.1 Module-Specific NFRs](#71-module-specific-nfrs)
   - [7.2 NFR Exclusions](#72-nfr-exclusions)
@@ -76,7 +77,7 @@ The result is fragmented knowledge: stale wiki pages that no longer reflect the 
 **Key Problems Solved:**
 
 - Fragmentation between source code and documentation
-- High friction for non-engineers to contribute to or comment on technical docs
+- High friction for non-engineers to contribute to or comment on any Git-hosted documents (including PRDs, requirements, use cases, design docs, and technical documentation)
 - Lack of in-context JIRA visibility — readers must context-switch to find ticket status
 - No enforcement mechanism for document quality or link integrity
 - Semantic search is unavailable across Git-hosted documentation
@@ -98,23 +99,29 @@ The result is fragmented knowledge: stale wiki pages that no longer reflect the 
 **Capabilities:**
 
 - Browse, author, and review Git-backed documents from a web UI
-- Leave context-aware inline comments that survive content changes
+- Seamless bidirectional navigation between Git raw documents and Cyber Wiki viewer (click raw doc link in Git to open in browser with full context; click in viewer to see raw doc in Git)
+- VS Code extension for IDE-native access to documentation browsing, editing, and commenting
+- REST API access for AI agents (CyPilot) to read, search, and analyze documentation content
+- Leave context-aware inline comments that survive content changes (comments are flagged when anchored text is removed)
+- Document-level comments displayed at page bottom (Confluence-style end-of-page comments for general feedback not tied to specific lines)
 - Preview rich content: Markdown, sequence diagrams, draw.io diagrams, tables
-- Validate documents against configurable rules before saving
+- Validate documents against configurable rules before saving (Admins configure validation rules per Space to enforce link integrity, schema compliance, and custom domain-specific requirements; prevents broken links and malformed documents)
 - Synchronise document changes bidirectionally with Git repositories
 - Surface JIRA issue data (status, assignee, priority) inline in documents
-- Search documentation semantically using AI-powered embeddings
-- Edit Markdown with WYSIWYG editor — headings, styles, tables, links
-- Global documentation space system with configurable Git repositories attached and configurable lists of files and folders to be discoverable
-- Integration with notification systems for document creation and updates — send emails, send notifications to Teams/Slack
-- Integrated chat where users can ask questions, review documents, and collaborate
-- Integrated AI assistant for inline document editing that can fix misprints, suggest better wording, and improve content
-- Support integration with local LLM models for misprint detection and content enhancement
+- Full-text search across all documents with exact keyword matching, file/folder filtering, and highlighted results (basic search that works reliably first)
+- Optional semantic search using AI-powered embeddings for relevance-ranked results (enhancement for exploratory queries when exact keywords aren't known)
+- Edit documents with WYSIWYG editor by default (headings, styles, tables, links render as formatted content while editing) with optional raw editing mode toggle for developers who need to see/edit underlying Markdown/HTML source
+- Multi-repository documentation workspace (Admins configure which Git repositories are accessible as Spaces, which files/folders are discoverable, and how documents are organized; enables unified documentation access across multiple repositories without requiring users to know Git repository locations)
+- Configurable notification system for document changes (users subscribe to specific documents, folders, or Spaces; choose notification channels per subscription — email, Teams, Slack; prevents notification flooding by requiring explicit opt-in per document/folder)
+- Embedded AI chat interface for documentation assistance (LLM-powered assistant with full documentation context enables users to ask questions, request summaries, and explore content conversationally)
+- Inline AI editing assistance (integrate LLM-based assistants such as CyPilot, Claude, GPT, or local models to fix misprints, suggest better wording, and improve content directly within the editor)
+- Support integration with local LLM models for AI-powered editing and content enhancement
 
 ### 1.4 Glossary
 
 | Term | Definition |
 |------|------------|
+| VCS (Version Control System) | A system that tracks changes to files over time, enabling multiple people to collaborate on documents and code while maintaining a complete history of all changes. Common VCS platforms include Git, GitHub, and Bitbucket. |
 | Space | A top-level organisational unit that groups related documents, optionally linked to a Git repository |
 | Document | A file (typically Markdown) stored within a Space, version-controlled through Git |
 | VCS Provider | An external version control system hosting service (e.g., GitHub, Bitbucket Server) accessed via an abstract pluggable interface; v1 supports GitHub and Bitbucket Server, and the interface allows further providers to be added without changing application logic |
@@ -209,7 +216,7 @@ The result is fragmented knowledge: stale wiki pages that no longer reflect the 
 
 Cyber Wiki is a self-hosted, single-team web application. It is accessed via a browser by all human actors. All document changes flow through Git — the platform never holds document state that is not committed or pending commit to a repository.
 
-The platform operates in a staging environment in v1; a production-grade deployment is explicitly out of scope. There are no multi-tenancy requirements in v1.
+The platform provides seamless bidirectional navigation between Git raw documents and the Cyber Wiki viewer: users can click document links in their VCS provider (GitHub, Bitbucket) to open documents in Cyber Wiki with full context, and every document in Cyber Wiki provides a link back to the raw document in Git. This ensures users can move fluidly between the raw Git view (for code review, blame, history) and the Cyber Wiki view (for rich preview, comments, validation) without manual navigation overhead.
 
 ---
 
@@ -242,11 +249,12 @@ Modern platforms use various comment system architectures: third-party services 
 ### 5.1 In Scope
 
 - Web-based browsing and editing of Git-backed documents (Markdown focus)
-- Live editing with immediate rich preview (Markdown, diagrams, tables)
+- VS Code extension providing IDE-native access to core platform features
+- True WYSIWYG editing (titles, bold, underline, colors, tables render as formatted content while editing; no separate preview mode; underlying format is transparent to users)
 - Inline commenting on documents
-- Pending Changes workflow: propose → review → approve/reject
+- Pending Changes workflow: propose → review → approve/reject (system detects conflicting edits and shows visual diff highlighting with word-level changes; users see exactly what changed and where conflicts exist)
 - Immutable change history per document
-- Bidirectional Git synchronisation with configurable direction and schedule
+- Bidirectional Git synchronisation with configurable direction and schedule (users never interact with Git commands directly; platform handles all commit/push/PR operations automatically; users simply save documents and platform manages Git workflow)
 - Pluggable VCS backend: GitHub and Bitbucket Server supported in v1; abstract interface supports adding further providers (GitLab, Azure DevOps) without changing application logic
 - Repository browsing, file tree navigation, and pull request listing via the VCS provider interface
 - Dual-mode left navigation panel: Document View (Confluence-style titled hierarchy from a configurable Document Index) and File Tree View (raw directory structure); user-switchable per Space
@@ -350,15 +358,57 @@ The configured extraction strategy **MUST** apply consistently to all documents 
 
 **Actors**: `cpt-cyberwiki-actor-admin`, `cpt-cyberwiki-actor-editor`
 
-### 6.2 Live Document Editing
+### 6.2 IDE Integration
 
-#### In-Browser Editing with Live Preview
+#### VS Code Extension
+
+- [ ] `p1` - **ID**: `cpt-cyberwiki-fr-vscode-extension`
+
+The system **MUST** provide a VS Code extension that enables users to access core Cyber Wiki features directly from their IDE without switching to a web browser. The extension **MUST** support at minimum:
+
+1. **Document browsing** — view and navigate the Space/repository document hierarchy within VS Code's sidebar
+2. **Document viewing** — open and view documents with rich preview rendering (Markdown, diagrams, JIRA badges)
+3. **Document editing** — edit documents with inline validation feedback and save/commit workflow
+4. **Inline comments** — view existing inline comments and create new comments on document line ranges
+5. **Search** — search across documents using both full-text and semantic search
+6. **Authentication** — authenticate with the Cyber Wiki backend using the same credentials as the web UI
+
+The extension **MUST** communicate with the Cyber Wiki backend via the same REST API used by the web UI. The extension **MUST** respect the same access control and permissions as the web UI.
+
+**Rationale**: Engineers spend most of their time in their IDE (VS Code, Windsurf, Cursor, etc.) and context-switching to a web browser disrupts flow. An IDE extension brings documentation workflows into the developer's primary workspace, reducing friction for the most active contributors. VS Code is chosen as the initial target due to its dominant market share and extension API compatibility with VS Code-based IDEs (Windsurf, Cursor).
+
+**Actors**: `cpt-cyberwiki-actor-admin`, `cpt-cyberwiki-actor-editor`, `cpt-cyberwiki-actor-commenter`, `cpt-cyberwiki-actor-viewer`
+
+#### API Access for AI Agents
+
+- [ ] `p1` - **ID**: `cpt-cyberwiki-fr-api-agent-access`
+
+The system **MUST** provide a REST API that enables AI agents (such as CyPilot) to programmatically access documentation content. The API **MUST** support at minimum:
+
+1. **Document retrieval** — read document content by path or ID
+2. **Document search** — perform full-text and semantic search across accessible documents
+3. **Document metadata** — retrieve document metadata (title, last modified, author, change history)
+4. **Space browsing** — list available spaces and navigate document hierarchies
+5. **Authentication** — authenticate using API tokens or service account credentials
+6. **Access control** — respect the same permission model as human users
+
+The API **MUST** return structured responses (JSON) suitable for programmatic consumption. The API **MUST** support pagination for large result sets.
+
+**Rationale**: AI agents like CyPilot need programmatic access to documentation to provide context-aware assistance, answer questions about documentation, and help users navigate and understand content. API access enables integration with AI workflows without requiring agents to scrape web pages or access Git repositories directly.
+
+**Actors**: `cpt-cyberwiki-actor-ci`, AI agents (CyPilot)
+
+### 6.3 Live Document Editing
+
+#### WYSIWYG Editing with Optional Raw Mode
 
 - [ ] `p1` - **ID**: `cpt-cyberwiki-fr-live-edit`
 
-The system **MUST** allow Editors to edit document content directly in the browser with a live preview rendered alongside or in place of the raw text.
+The system **MUST** allow Editors to edit document content directly in the browser using a WYSIWYG editor by default. The WYSIWYG editor **MUST** render formatting (headings, bold, underline, colors, tables, links) as formatted content while editing, with no separate preview mode. The underlying file format (Markdown, HTML, etc.) **MUST** be transparent to users in WYSIWYG mode.
 
-**Rationale**: Eliminates the need for a local Git client or local Markdown renderer, reducing contribution friction to zero for engineers and non-engineers alike.
+The system **MUST** provide a toggle to switch between WYSIWYG mode and raw editing mode. In raw editing mode, users can view and edit the underlying Markdown/HTML source directly. Users **MUST** be able to switch between modes at any time without losing unsaved changes.
+
+**Rationale**: WYSIWYG editing eliminates the need for non-technical users (PMs, designers) to learn Markdown syntax or understand file formats, reducing contribution friction to zero. Raw editing mode preserves the ability for developers and technical users to work directly with source when needed (e.g., for complex formatting, troubleshooting, or preference).
 
 **Actors**: `cpt-cyberwiki-actor-editor`
 
@@ -477,6 +527,22 @@ Admins **MUST** be able to configure default mention notification channels (emai
 
 **Actors**: `cpt-cyberwiki-actor-admin`
 
+#### Document Change Notification Subscriptions
+
+- [ ] `p2` - **ID**: `cpt-cyberwiki-fr-document-change-notifications`
+
+Users **MUST** be able to subscribe to document change notifications at three levels: individual documents, folders, or entire Spaces. For each subscription, users **MUST** be able to configure:
+
+1. **Notification channels** — choose which channels to receive notifications on (email, Microsoft Teams, Slack) per subscription
+2. **Notification triggers** — select which events trigger notifications (document created, document updated, document deleted, comment added)
+3. **Subscription management** — view all active subscriptions and unsubscribe at any time
+
+The system **MUST** use an explicit opt-in model: users receive notifications only for documents/folders/Spaces they have explicitly subscribed to. The system **MUST NOT** send unsolicited notifications for documents the user has not subscribed to (except for direct mentions, which follow the mention notification preferences).
+
+**Rationale**: An opt-in subscription model prevents notification flooding by giving users granular control over what they are notified about and how. Users can stay informed about critical documents without being overwhelmed by changes to documents they don't care about. Per-subscription channel configuration allows users to route high-priority notifications to immediate channels (Teams/Slack) and lower-priority ones to email.
+
+**Actors**: `cpt-cyberwiki-actor-editor`, `cpt-cyberwiki-actor-commenter`, `cpt-cyberwiki-actor-viewer`
+
 #### Smart Editing: Newly Typed Text Highlighting
 
 - [ ] `p1` - **ID**: `cpt-cyberwiki-fr-smart-edit-highlight-new-text`
@@ -527,7 +593,7 @@ The system **MUST** support a GitHub-style review workflow with a "Submit review
 
 **Actors**: `cpt-cyberwiki-actor-editor`
 
-### 6.3 Contextual Inline Comments
+### 6.4 Contextual Inline Comments
 
 #### Anchor Comments to Line Ranges
 
@@ -543,9 +609,9 @@ The system **MUST** allow authenticated actors to leave inline comments anchored
 
 - [ ] `p1` - **ID**: `cpt-cyberwiki-fr-comment-persistence`
 
-The system **MUST** keep comments visible and relevant even after the lines they are anchored to have changed; when an anchor becomes outdated, the comment **MUST** be flagged rather than hidden.
+The system **MUST** keep comments visible and relevant even after the lines they are anchored to have changed; when an anchor becomes outdated (including when the anchored text is modified or removed), the comment **MUST** be flagged as "outdated" rather than hidden. Comments anchored to completely removed text **MUST** remain visible with a clear indication that the original anchor no longer exists.
 
-**Rationale**: Comments that silently disappear after a document edit cause reviewers to lose track of unresolved concerns; flagging preserves traceability without cluttering the view.
+**Rationale**: Comments that silently disappear after a document edit cause reviewers to lose track of unresolved concerns; flagging preserves traceability without cluttering the view. When anchored text is removed, the comment still provides valuable context about what was discussed and why changes were made.
 
 **Actors**: `cpt-cyberwiki-actor-editor`, `cpt-cyberwiki-actor-admin`
 
@@ -558,6 +624,16 @@ The system **MUST** support threaded replies to inline comments (one level of ne
 **Rationale**: Threaded replies allow back-and-forth resolution of a concern without creating new top-level comments, keeping the review gutter readable.
 
 **Actors**: `cpt-cyberwiki-actor-editor`, `cpt-cyberwiki-actor-admin`, `cpt-cyberwiki-actor-commenter`
+
+#### Document-Level Comments
+
+- [ ] `p1` - **ID**: `cpt-cyberwiki-fr-document-level-comments`
+
+The system **MUST** support document-level comments that are anchored to the document as a whole rather than to specific line ranges. Document-level comments **MUST** be displayed in a dedicated section at the bottom of the document page (Confluence-style end-of-page comments). Document-level comments **MUST** support the same features as inline comments: threaded replies, resolve/delete actions, and author/timestamp metadata.
+
+**Rationale**: Not all feedback is tied to specific lines — general observations, overall document quality feedback, high-level questions, and cross-cutting concerns are better expressed as document-level comments. Displaying these at the page bottom (Confluence pattern) keeps them separate from inline comments, reducing clutter in the line-anchored comment gutter while ensuring general feedback is not lost. This serves reviewers who want to provide holistic feedback without forcing them to pick an arbitrary line to anchor to.
+
+**Actors**: `cpt-cyberwiki-actor-editor`, `cpt-cyberwiki-actor-commenter`, `cpt-cyberwiki-actor-viewer`
 
 #### Comment Storage
 
@@ -586,7 +662,7 @@ Each comment **MUST** be stored with the following metadata to enable retrieval 
 
 **Note**: The architectural decision for comment system architecture, including detailed analysis of alternative approaches (Disqus, Giscus, GitHub Discussions, Confluence) and comparative evaluation, is documented in [`ADR-002: Comment System Architecture`](./ADR/002-comment-system-architecture.md).
 
-### 6.4 Change Review Workflow
+### 6.5 Change Review Workflow
 
 #### Propose Pending Changes
 
@@ -618,7 +694,7 @@ The system **MUST** maintain an immutable per-document change history that recor
 
 **Actors**: `cpt-cyberwiki-actor-editor`, `cpt-cyberwiki-actor-admin`, `cpt-cyberwiki-actor-viewer`
 
-### 6.5 Rich Content Previews
+### 6.6 Rich Content Previews
 
 #### Markdown Rendering
 
@@ -674,7 +750,7 @@ The system **MUST** provide an extension point for rendering custom visual eleme
 
 **Actors**: `cpt-cyberwiki-actor-admin`
 
-### 6.6 Document Validation
+### 6.7 Document Validation
 
 #### Link Checker
 
@@ -706,7 +782,7 @@ The system **MUST** support pluggable custom validators (e.g., CTI-specific rule
 
 **Actors**: `cpt-cyberwiki-actor-admin`, `cpt-cyberwiki-actor-ci`
 
-### 6.7 Git Synchronisation
+### 6.8 Git Synchronisation
 
 #### Bidirectional Sync
 
@@ -728,15 +804,20 @@ The system **MUST** detect merge conflicts during sync and surface them to the c
 
 **Actors**: `cpt-cyberwiki-actor-editor`, `cpt-cyberwiki-actor-commenter`
 
-### 6.8 Search
+### 6.9 Search
 
 #### Full-Text Search
 
-- [ ] `p2` - **ID**: `cpt-cyberwiki-fr-fulltext-search`
+- [ ] `p1` - **ID**: `cpt-cyberwiki-fr-fulltext-search`
 
-The system **MUST** provide full-text search across all documents and spaces the requesting actor has access to, with results filterable by space and showing the document title, space name, a highlighted excerpt, and line number.
+The system **MUST** provide full-text search across all documents and spaces the requesting actor has access to. Search results **MUST** support:
 
-**Rationale**: Text search is a baseline requirement for any knowledge platform; without it, users cannot find documents they don't already know the path to.
+1. **Exact keyword matching** — find documents containing the exact search terms
+2. **File/folder filtering** — filter results by specific files, folders, or Spaces
+3. **Result highlighting** — show document title, space name, highlighted excerpt with matched terms, and line number
+4. **Search within results** — ability to determine if a specific term exists in a file/folder without ranking
+
+**Rationale**: Basic full-text search is the foundation requirement for any knowledge platform; without reliable keyword search that works consistently, users cannot find documents they need. This must work first before adding advanced features. Simple "does this term exist in this folder" queries are often more useful than relevance-ranked results.
 
 **Actors**: `cpt-cyberwiki-actor-editor`, `cpt-cyberwiki-actor-commenter`, `cpt-cyberwiki-actor-viewer`
 
@@ -744,13 +825,13 @@ The system **MUST** provide full-text search across all documents and spaces the
 
 - [ ] `p2` - **ID**: `cpt-cyberwiki-fr-semantic-search`
 
-The system **MUST** provide AI-powered semantic search using vector embeddings so that queries return conceptually relevant documents even when they do not share exact keywords with the query.
+The system **MAY** provide optional AI-powered semantic search using vector embeddings so that queries return conceptually relevant documents even when they do not share exact keywords with the query. Semantic search **MUST** be offered as an opt-in enhancement alongside full-text search, not as a replacement.
 
-**Rationale**: Keyword search fails for exploratory queries and synonyms; semantic search dramatically improves the quality of results for engineering documentation, which is dense with jargon and acronyms.
+**Rationale**: Semantic search is useful for exploratory queries when exact keywords aren't known, but it should not replace basic keyword search. Sometimes users just want to know if a specific term exists in a file/folder without AI-powered relevance ranking. Semantic search is an enhancement, not a requirement for v1.
 
 **Actors**: `cpt-cyberwiki-actor-editor`, `cpt-cyberwiki-actor-commenter`, `cpt-cyberwiki-actor-viewer`
 
-### 6.9 JIRA Integration
+### 6.10 JIRA Integration
 
 #### Inline JIRA Issue Badges
 
@@ -782,7 +863,7 @@ The system **MUST** allow users to search JIRA issues from within the platform w
 
 **Actors**: `cpt-cyberwiki-actor-editor`, `cpt-cyberwiki-actor-commenter`
 
-### 6.10 Access Control
+### 6.11 Access Control
 
 #### User Authentication
 
@@ -794,7 +875,7 @@ The system **MUST** authenticate all users before granting access to any space o
 
 **Actors**: `cpt-cyberwiki-actor-admin`, `cpt-cyberwiki-actor-editor`, `cpt-cyberwiki-actor-commenter`, `cpt-cyberwiki-actor-viewer`
 
-### 6.11 VCS Integration
+### 6.12 VCS Integration
 
 #### VCS Provider Authentication
 
@@ -822,6 +903,22 @@ The system **MUST** support GitHub and Bitbucket Server as VCS providers, and **
 **Rationale**: Engineering teams run a variety of self-hosted or cloud VCS platforms; a pluggable interface prevents vendor lock-in and enables incremental provider coverage.
 
 **Actors**: `cpt-cyberwiki-actor-admin`, `cpt-cyberwiki-actor-editor`
+
+#### Seamless Git-to-Viewer Navigation
+
+- [ ] `p1` - **ID**: `cpt-cyberwiki-fr-git-viewer-navigation`
+
+The system **MUST** provide seamless bidirectional navigation between Git raw documents and the Cyber Wiki viewer:
+
+1. **Git → Viewer** — clicking a document link in the VCS provider (GitHub, Bitbucket) **MUST** open the document in Cyber Wiki with full context (Space navigation, inline comments, JIRA badges, rich preview)
+2. **Viewer → Git** — every document view in Cyber Wiki **MUST** provide a "View in Git" or "View raw" link that opens the raw document in the VCS provider at the current commit/branch
+3. **Deep linking** — links **MUST** preserve context such as line numbers, commit SHA, and branch name when navigating between systems
+
+The system **MUST** support this navigation through URL patterns or browser extensions that intercept VCS provider document URLs and redirect to Cyber Wiki.
+
+**Rationale**: Users need to move fluidly between the raw Git view (for code review, blame, history) and the Cyber Wiki view (for rich preview, comments, validation). Forcing users to manually navigate between systems breaks their workflow. Seamless linking ensures users can click a GitHub/Bitbucket link and immediately see the document with full Cyber Wiki context, and vice versa.
+
+**Actors**: `cpt-cyberwiki-actor-editor`, `cpt-cyberwiki-actor-commenter`, `cpt-cyberwiki-actor-viewer`
 
 #### VCS Provider Interface Contract
 
@@ -1125,18 +1222,18 @@ Cyber Wiki depends on the following external integration contracts:
 
 **Main Flow**:
 1. Editor opens the document in the browser
-2. Editor switches to edit mode; live preview appears alongside the editor
+2. Editor switches to edit mode; document opens in WYSIWYG editor by default (titles, bold, underline, colors, tables render as formatted content while editing; no separate preview mode)
 3. Editor makes changes; validators run in the background and surface issues inline
 4. Editor resolves any validation errors
-5. Editor saves the change to a personal branch
-6. Editor commits/merges the branch to main via the UI
-7. System creates a Change Record and triggers a Git sync
+5. Editor clicks "Save" button; system automatically handles Git commit/push operations without requiring Editor to interact with Git commands
+6. System creates a Change Record and triggers a Git sync
 
 **Postconditions**:
 - Document content is updated in the Space and committed to the linked Git repository
 - A Change Record is created with author, timestamp, and diff
 
 **Alternative Flows**:
+- **Raw editing mode**: Developer/technical user can toggle to raw editing mode to see and edit the underlying Markdown/HTML source directly; toggle back to WYSIWYG at any time
 - **Validation failure**: System blocks save and highlights the failing validator; Editor must resolve before proceeding
 - **Merge conflict**: System detects conflict during sync and notifies the Admin
 
