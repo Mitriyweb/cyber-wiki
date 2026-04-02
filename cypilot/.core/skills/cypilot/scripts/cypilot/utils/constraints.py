@@ -897,12 +897,9 @@ def cross_validate_artifacts(
 ) -> Dict[str, List[Dict[str, object]]]:
     from .document import headings_by_line, scan_cpt_ids
 
+    _ = known_kinds
     errors: List[Dict[str, object]] = []
     warnings: List[Dict[str, object]] = []
-
-    kinds_set: Optional[set] = None
-    if known_kinds is not None:
-        kinds_set = {str(k).lower() for k in known_kinds}
 
     constraints_by_artifact_kind: Dict[str, ArtifactKindConstraints] = {}
     missing_constraints_kinds: set[str] = set()
@@ -1930,7 +1927,7 @@ def load_constraints_toml(kit_root: Path) -> Tuple[Optional[KitConstraints], Lis
     try:
         from . import toml_utils
         data = toml_utils.load(path)
-    except Exception as e:
+    except (OSError, ValueError, KeyError) as e:
         return None, [f"Failed to parse constraints.toml: {e}"]
 
     # TOML wraps kinds under "artifacts" key
@@ -2014,7 +2011,7 @@ def validate_headings_contract(
     *,
     path: Path,
     constraints: ArtifactKindConstraints,
-    registered_systems: Optional[Iterable[str]],
+    registered_systems: Optional[Iterable[str]],  # pylint: disable=unused-argument  # public API; reserved for system-scoped heading validation
     artifact_kind: str,
     constraints_path: Optional[Path] = None,
     kit_id: Optional[str] = None,
@@ -2028,8 +2025,6 @@ def validate_headings_contract(
     """
     # @cpt-end:cpt-cypilot-algo-traceability-validation-headings-contract:p1:inst-validate-headings-entry
     # @cpt-begin:cpt-cypilot-algo-traceability-validation-headings-contract:p1:inst-validate-init
-    from .document import scan_cpt_ids
-
     errors: List[Dict[str, object]] = []
     warnings: List[Dict[str, object]] = []
 

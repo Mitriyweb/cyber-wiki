@@ -65,6 +65,56 @@ def _parse_github_source(source: str) -> Tuple[str, str, str]:
 # @cpt-end:cpt-cypilot-algo-kit-github-helpers:p1:inst-parse-source
 
 
+_GITHUB_TARBALL_MAX_MEMBERS = 4096
+_GITHUB_TARBALL_MAX_TOTAL_SIZE = 512 * 1024 * 1024
+_GITHUB_TARBALL_MAX_EXPANSION_RATIO = 200
+
+
+def _validate_tar_archive_before_extract(
+    tar: tarfile.TarFile,
+    tar_path: Path,
+    tmp_dir: Path,
+) -> None:
+    tmp_dir_resolved = tmp_dir.resolve()
+    total_size = 0
+    member_count = 0
+
+    while True:
+        member = tar.next()
+        if member is None:
+            break
+        member_count += 1
+        if member_count > _GITHUB_TARBALL_MAX_MEMBERS:
+            raise RuntimeError(
+                "Archive extraction blocked: too many archive entries "
+                f"(>{_GITHUB_TARBALL_MAX_MEMBERS})"
+            )
+        member_path = (tmp_dir / member.name).resolve()
+        if not member_path.is_relative_to(tmp_dir_resolved):
+            raise RuntimeError(
+                f"Unsafe path in archive: {member.name!r}"
+            )
+        if member.isfile():
+            total_size += member.size
+            if total_size > _GITHUB_TARBALL_MAX_TOTAL_SIZE:
+                raise RuntimeError(
+                    "Archive extraction blocked: total extracted size exceeds "
+                    f"limit ({total_size} > {_GITHUB_TARBALL_MAX_TOTAL_SIZE} bytes)"
+                )
+
+    archive_size = tar_path.stat().st_size
+    if total_size > 0 and archive_size <= 0:
+        raise RuntimeError(
+            "Archive extraction blocked: invalid compressed archive size "
+            f"({archive_size} bytes)"
+        )
+    if archive_size > 0 and total_size > archive_size * _GITHUB_TARBALL_MAX_EXPANSION_RATIO:
+        raise RuntimeError(
+            "Archive extraction blocked: suspicious compression expansion ratio "
+            f"({total_size}/{archive_size} > {_GITHUB_TARBALL_MAX_EXPANSION_RATIO}x)"
+        )
+
+
 # @cpt-begin:cpt-cypilot-algo-kit-github-helpers:p1:inst-download
 def _download_kit_from_github(
     owner: str,
@@ -107,10 +157,16 @@ def _download_kit_from_github(
             f"Failed to download kit from GitHub ({owner}/{repo}@{version}): {exc}"
         ) from exc
 
-    # Extract
+    # Extract — validate member paths to prevent zip-slip (S5042), then use
+    # the built-in ``filter="data"`` safeguard for defence-in-depth.
     try:
         with tarfile.open(tar_path, "r:gz") as tar:
-            tar.extractall(path=tmp_dir, filter="data")
+            _validate_tar_archive_before_extract(tar, tar_path, tmp_dir)
+        with tarfile.open(tar_path, "r:gz") as tar:
+            tar.extractall(path=tmp_dir, filter="data")  # noqa: S202
+    except RuntimeError:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+        raise
     except Exception as exc:
         shutil.rmtree(tmp_dir, ignore_errors=True)
         raise RuntimeError(
@@ -592,7 +648,7 @@ def _read_project_name_from_registry(config_dir: Path) -> Optional[str]:
                 name = first.get("name")
                 if isinstance(name, str) and name.strip():
                     return name.strip()
-    except Exception as exc:
+    except (OSError, ValueError) as exc:
         sys.stderr.write(f"kit: warning: cannot read project name from {artifacts_toml}: {exc}\n")
     return None
 # @cpt-end:cpt-cypilot-algo-kit-regen-gen:p1:inst-read-project-name-fn
@@ -1550,7 +1606,7 @@ def cmd_kit_update(argv: List[str]) -> int:
                 source=github_source,
             )
             # @cpt-end:cpt-cypilot-flow-kit-update-cli:p1:inst-legacy-migration
-        except Exception as exc:
+        except Exception as exc:  # pylint: disable=broad-exception-caught  # per-kit safety net — must not crash the update loop
             kit_r = {"kit": kit_slug, "version": {"status": "failed"}, "gen": {}}
             errors.append(f"{kit_slug}: {exc}")
         finally:
@@ -1656,7 +1712,7 @@ def _read_conf_version(conf_path: Path) -> int:
             data = tomllib.load(f)
         ver = data.get("version")
         return int(ver) if ver is not None else 0
-    except Exception:
+    except (OSError, ValueError):
         return 0
     # @cpt-end:cpt-cypilot-algo-kit-config-helpers:p1:inst-read-conf-version
 
@@ -1728,7 +1784,7 @@ def _migrate_single_kits_dir_entry(
             shutil.rmtree(config_kit)
         os.replace(config_kit_tmp, config_kit)
         return "migrated"
-    except Exception as exc:
+    except OSError as exc:
         if config_kit_tmp.exists():
             shutil.rmtree(config_kit_tmp, ignore_errors=True)
         _restore_existing_config_kit(config_backup, config_kit)
@@ -1768,7 +1824,7 @@ def _migrate_single_gen_kit_entry(gen_kit: Path, config_kits: Path, backup_dir: 
             shutil.rmtree(config_kit)
         os.replace(config_kit_tmp, config_kit)
         return "migrated"
-    except Exception as exc:
+    except OSError as exc:
         if config_kit_tmp.exists():
             shutil.rmtree(config_kit_tmp, ignore_errors=True)
         _restore_existing_config_kit(config_backup, config_kit)
@@ -2246,7 +2302,7 @@ def update_kit(
     # @cpt-end:cpt-cypilot-algo-kit-update:p1:inst-return-result
 
 # @cpt-begin:cpt-cypilot-flow-kit-dispatch:p1:inst-migrate-deprecated
-def cmd_kit_migrate(argv: List[str]) -> int:
+def cmd_kit_migrate(_argv: List[str]) -> int:
     """Deprecated — use 'cypilot kit update <path>' instead.
 
     The migrate command was part of the blueprint-based three-way merge system
@@ -2310,7 +2366,7 @@ def _read_kits_from_core_toml(config_dir: Path) -> Dict[str, Dict[str, Any]]:
         import tomllib
         with open(core_toml, "rb") as f:
             data = tomllib.load(f)
-    except Exception:
+    except (OSError, ValueError):
         return {}
     kits = data.get("kits", {})
     if not isinstance(kits, dict):
@@ -2334,7 +2390,7 @@ def _read_kit_slug(kit_source: Path) -> str:
         slug = data.get("slug")
         if isinstance(slug, str) and slug.strip():
             return slug.strip()
-    except Exception as exc:
+    except (OSError, ValueError) as exc:
         sys.stderr.write(f"kit: warning: cannot read {conf_toml}: {exc}\n")
     return ""
     # @cpt-end:cpt-cypilot-algo-kit-config-helpers:p1:inst-read-slug
@@ -2355,7 +2411,7 @@ def _read_kit_version_from_core(config_dir: Path, kit_slug: str) -> str:
         ver = kit_entry.get("version")
         if ver is not None:
             return str(ver)
-    except Exception as exc:
+    except (OSError, ValueError) as exc:
         sys.stderr.write(f"kit: warning: cannot read version for '{kit_slug}' from {core_toml}: {exc}\n")
     return ""
     # @cpt-end:cpt-cypilot-algo-kit-config-helpers:p1:inst-read-version-from-core
@@ -2372,7 +2428,7 @@ def _read_kit_version(conf_path: Path) -> str:
         ver = data.get("version")
         if ver is not None:
             return str(ver)
-    except Exception as exc:
+    except (OSError, ValueError) as exc:
         sys.stderr.write(f"kit: warning: cannot read version from {conf_path}: {exc}\n")
     return ""
     # @cpt-end:cpt-cypilot-algo-kit-config-helpers:p1:inst-read-kit-version
@@ -2383,7 +2439,7 @@ def _register_kit_in_core_toml(
     config_dir: Path,
     kit_slug: str,
     kit_version: str,
-    cypilot_dir: Path,
+    _cypilot_dir: Path,  # reserved for future cypilot-dir-relative path computation
     source: str = "",
     resources: Optional[Dict[str, Dict[str, str]]] = None,
     kit_path: str = "",
@@ -2398,7 +2454,7 @@ def _register_kit_in_core_toml(
         import tomllib
         with open(core_toml, "rb") as f:
             data = tomllib.load(f)
-    except Exception:
+    except (OSError, ValueError):
         return
 
     kits = data.setdefault("kits", {})
@@ -2431,7 +2487,7 @@ def _register_kit_in_core_toml(
     try:
         from ..utils import toml_utils
         toml_utils.dump(data, core_toml, header_comment="Cypilot project configuration")
-    except Exception as exc:
+    except (OSError, ValueError) as exc:
         sys.stderr.write(f"kit: warning: failed to register {kit_slug} in {core_toml}: {exc}\n")
     # @cpt-end:cpt-cypilot-algo-kit-config-helpers:p1:inst-register-core
 # @cpt-end:cpt-cypilot-algo-kit-config-helpers:p1:inst-register-core-fn
