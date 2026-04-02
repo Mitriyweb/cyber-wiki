@@ -20,16 +20,17 @@
   - [5.2 Out of Scope](#52-out-of-scope)
 - [6. Functional Requirements](#6-functional-requirements)
   - [6.1 Repository & Space Navigation](#61-repository--space-navigation)
-  - [6.2 Live Document Editing](#62-live-document-editing)
-  - [6.3 Contextual Inline Comments](#63-contextual-inline-comments)
-  - [6.4 Change Review Workflow](#64-change-review-workflow)
-  - [6.5 Rich Content Previews](#65-rich-content-previews)
-  - [6.6 Document Validation](#66-document-validation)
-  - [6.7 Git Synchronisation](#67-git-synchronisation)
-  - [6.8 Search](#68-search)
-  - [6.9 JIRA Integration](#69-jira-integration)
-  - [6.10 Access Control](#610-access-control)
-  - [6.11 VCS Integration](#611-vcs-integration)
+  - [6.2 IDE Integration](#62-ide-integration)
+  - [6.3 Live Document Editing](#63-live-document-editing)
+  - [6.4 Contextual Inline Comments](#64-contextual-inline-comments)
+  - [6.5 Change Review Workflow](#65-change-review-workflow)
+  - [6.6 Rich Content Previews](#66-rich-content-previews)
+  - [6.7 Document Validation](#67-document-validation)
+  - [6.8 Git Synchronisation](#68-git-synchronisation)
+  - [6.9 Search](#69-search)
+  - [6.10 JIRA Integration](#610-jira-integration)
+  - [6.11 Access Control](#611-access-control)
+  - [6.12 VCS Integration](#612-vcs-integration)
 - [7. Non-Functional Requirements](#7-non-functional-requirements)
   - [7.1 Module-Specific NFRs](#71-module-specific-nfrs)
   - [7.2 NFR Exclusions](#72-nfr-exclusions)
@@ -98,6 +99,7 @@ The result is fragmented knowledge: stale wiki pages that no longer reflect the 
 **Capabilities:**
 
 - Browse, author, and review Git-backed documents from a web UI
+- VS Code extension for IDE-native access to documentation browsing, editing, and commenting
 - Leave context-aware inline comments that survive content changes
 - Preview rich content: Markdown, sequence diagrams, draw.io diagrams, tables
 - Validate documents against configurable rules before saving
@@ -242,6 +244,7 @@ Modern platforms use various comment system architectures: third-party services 
 ### 5.1 In Scope
 
 - Web-based browsing and editing of Git-backed documents (Markdown focus)
+- VS Code extension providing IDE-native access to core platform features
 - Live editing with immediate rich preview (Markdown, diagrams, tables)
 - Inline commenting on documents
 - Pending Changes workflow: propose → review → approve/reject
@@ -350,7 +353,28 @@ The configured extraction strategy **MUST** apply consistently to all documents 
 
 **Actors**: `cpt-cyberwiki-actor-admin`, `cpt-cyberwiki-actor-editor`
 
-### 6.2 Live Document Editing
+### 6.2 IDE Integration
+
+#### VS Code Extension
+
+- [ ] `p1` - **ID**: `cpt-cyberwiki-fr-vscode-extension`
+
+The system **MUST** provide a VS Code extension that enables users to access core Cyber Wiki features directly from their IDE without switching to a web browser. The extension **MUST** support at minimum:
+
+1. **Document browsing** — view and navigate the Space/repository document hierarchy within VS Code's sidebar
+2. **Document viewing** — open and view documents with rich preview rendering (Markdown, diagrams, JIRA badges)
+3. **Document editing** — edit documents with inline validation feedback and save/commit workflow
+4. **Inline comments** — view existing inline comments and create new comments on document line ranges
+5. **Search** — search across documents using both full-text and semantic search
+6. **Authentication** — authenticate with the Cyber Wiki backend using the same credentials as the web UI
+
+The extension **MUST** communicate with the Cyber Wiki backend via the same REST API used by the web UI. The extension **MUST** respect the same access control and permissions as the web UI.
+
+**Rationale**: Engineers spend most of their time in their IDE (VS Code, Windsurf, Cursor, etc.) and context-switching to a web browser disrupts flow. An IDE extension brings documentation workflows into the developer's primary workspace, reducing friction for the most active contributors. VS Code is chosen as the initial target due to its dominant market share and extension API compatibility with VS Code-based IDEs (Windsurf, Cursor).
+
+**Actors**: `cpt-cyberwiki-actor-admin`, `cpt-cyberwiki-actor-editor`, `cpt-cyberwiki-actor-commenter`, `cpt-cyberwiki-actor-viewer`
+
+### 6.3 Live Document Editing
 
 #### In-Browser Editing with Live Preview
 
@@ -527,7 +551,7 @@ The system **MUST** support a GitHub-style review workflow with a "Submit review
 
 **Actors**: `cpt-cyberwiki-actor-editor`
 
-### 6.3 Contextual Inline Comments
+### 6.4 Contextual Inline Comments
 
 #### Anchor Comments to Line Ranges
 
@@ -586,7 +610,7 @@ Each comment **MUST** be stored with the following metadata to enable retrieval 
 
 **Note**: The architectural decision for comment system architecture, including detailed analysis of alternative approaches (Disqus, Giscus, GitHub Discussions, Confluence) and comparative evaluation, is documented in [`ADR-002: Comment System Architecture`](./ADR/002-comment-system-architecture.md).
 
-### 6.4 Change Review Workflow
+### 6.5 Change Review Workflow
 
 #### Propose Pending Changes
 
@@ -618,7 +642,7 @@ The system **MUST** maintain an immutable per-document change history that recor
 
 **Actors**: `cpt-cyberwiki-actor-editor`, `cpt-cyberwiki-actor-admin`, `cpt-cyberwiki-actor-viewer`
 
-### 6.5 Rich Content Previews
+### 6.6 Rich Content Previews
 
 #### Markdown Rendering
 
@@ -674,7 +698,7 @@ The system **MUST** provide an extension point for rendering custom visual eleme
 
 **Actors**: `cpt-cyberwiki-actor-admin`
 
-### 6.6 Document Validation
+### 6.7 Document Validation
 
 #### Link Checker
 
@@ -706,7 +730,7 @@ The system **MUST** support pluggable custom validators (e.g., CTI-specific rule
 
 **Actors**: `cpt-cyberwiki-actor-admin`, `cpt-cyberwiki-actor-ci`
 
-### 6.7 Git Synchronisation
+### 6.8 Git Synchronisation
 
 #### Bidirectional Sync
 
@@ -728,7 +752,7 @@ The system **MUST** detect merge conflicts during sync and surface them to the c
 
 **Actors**: `cpt-cyberwiki-actor-editor`, `cpt-cyberwiki-actor-commenter`
 
-### 6.8 Search
+### 6.9 Search
 
 #### Full-Text Search
 
@@ -750,7 +774,7 @@ The system **MUST** provide AI-powered semantic search using vector embeddings s
 
 **Actors**: `cpt-cyberwiki-actor-editor`, `cpt-cyberwiki-actor-commenter`, `cpt-cyberwiki-actor-viewer`
 
-### 6.9 JIRA Integration
+### 6.10 JIRA Integration
 
 #### Inline JIRA Issue Badges
 
@@ -782,7 +806,7 @@ The system **MUST** allow users to search JIRA issues from within the platform w
 
 **Actors**: `cpt-cyberwiki-actor-editor`, `cpt-cyberwiki-actor-commenter`
 
-### 6.10 Access Control
+### 6.11 Access Control
 
 #### User Authentication
 
@@ -794,7 +818,7 @@ The system **MUST** authenticate all users before granting access to any space o
 
 **Actors**: `cpt-cyberwiki-actor-admin`, `cpt-cyberwiki-actor-editor`, `cpt-cyberwiki-actor-commenter`, `cpt-cyberwiki-actor-viewer`
 
-### 6.11 VCS Integration
+### 6.12 VCS Integration
 
 #### VCS Provider Authentication
 
