@@ -50,49 +50,122 @@
 ### 1.1 Technology Stack
 
 **Core Framework:**
-- React 18.3.1 with TypeScript 4.9.5
+- FrontX (HAI3) Dev Kit — AI-optimized UI development framework
+- React 19 with TypeScript 5.x
+- Vite 5.x — Modern build tool and dev server
 - Single-page application (SPA) architecture
 - No server-side rendering
 
+**State Management:**
+- Redux Toolkit 2.x — State management foundation
+- Event-driven Flux architecture (HAI3 pattern)
+- `@hai3/state` — Event bus, store, and slices (SDK Layer 1)
+- Zero direct Redux dispatch from components (event-driven only)
+
 **Styling:**
-- Tailwind CSS 3.4.18 (utility-first CSS framework)
-- CSS custom properties for theming (`--bg-primary`, `--text-primary`, etc.)
-- No CSS modules or styled-components
+- Tailwind CSS 3.4.x (utility-first CSS framework)
+- shadcn/ui — Customizable component library
+- CSS custom properties for theming
+- Lucide React — Icon library
+
+**HAI3 SDK Packages (Layer 1 - Zero Cross-Dependencies):**
+- `@hai3/state` — Event bus, store management, slice registry
+- `@hai3/screensets` — Screenset types, MFE contracts, layout domains
+- `@hai3/api` — Protocol-agnostic API layer (REST, SSE, mock mode)
+- `@hai3/i18n` — Internationalization, formatters, translation loading
+
+**HAI3 Framework (Layer 2):**
+- `@hai3/framework` — Plugin system, registries, effect coordination
+- Composable plugins for state, API, i18n, screensets
+- Presets: `full()`, `minimal()`, `headless()`
+
+**HAI3 React Layer (Layer 3):**
+- `@hai3/react` — React bindings, hooks, providers
+- Context providers for store, i18n, theme
+- Custom hooks for state access and event emission
 
 **Key Libraries:**
 - `unified` + `remark-parse` + `remark-gfm` — Markdown AST parsing
-- `react-markdown` — Markdown rendering fallback
-- `lucide-react` — Icon library
+- `react-markdown` — Markdown rendering
 - `@tanstack/react-virtual` — Virtual scrolling for large lists
-- `rehype-expressive-code` — Syntax highlighting for code blocks
+- `rehype-expressive-code` — Syntax highlighting
 - `js-yaml` — YAML parsing
+- `axios` — HTTP client (peer dependency for `@hai3/api`)
 
 **Build Tools:**
-- `react-scripts` 5.0.1 (Create React App)
-- Node.js 25.1.0
+- Vite 5.x — Fast HMR, optimized production builds
+- Node.js 18+
+- npm 9+
 
 ### 1.2 Project Structure
 
+**FrontX (HAI3) 4-Layer Architecture:**
+
 ```
-src/frontend/
-├── App.tsx                    # Root component, routing logic
-├── index.tsx                  # Entry point
-├── types.ts                   # Global TypeScript types and enums
-├── constants.ts               # API URLs and constants
-├── components/                # Shared UI components
-│   ├── Layout.tsx            # Main layout with sidebar
-│   ├── LoginPage.tsx         # Authentication page
-│   ├── CommentsPanel.tsx     # Comment thread UI
-│   ├── Sidebar/
-│   │   ├── FileTree.tsx      # Developer mode tree
-│   │   └── DocumentTree.tsx  # Document mode tree
-│   └── Enrichments/
-│       ├── EnrichedCodeView.tsx
-│       ├── EnrichmentMarker.tsx
-│       └── EnrichmentPanel.tsx
-├── context/                   # React Context providers
+L1 (SDK)        @hai3/state, @hai3/api, @hai3/i18n, @hai3/screensets
+                Zero cross-dependencies, no React, use anywhere
+                ↓
+L2 (Framework)  @hai3/framework
+                Plugin system, registries, composed from SDK
+                ↓
+L3 (React)      @hai3/react
+                React bindings, hooks, providers
+                ↓
+L4 (App)        Cyber Wiki application code
+                Screensets, themes, custom components
+```
+
+**Project Structure:**
+
+```
+cyber-wiki-frontend/
+├── .ai/                       # AI prompting rules and guidelines
+│   ├── GUIDELINES.md         # HAI3 generation rules
+│   └── targets/              # AI generation targets
+├── index.html                 # Vite HTML entry
+├── src/
+│   ├── App.tsx               # Root React component
+│   ├── main.tsx              # App entry; mounts React and HAI3 providers
+│   ├── types.ts              # Global TypeScript types
+│   ├── screensets/           # Screensets (HAI3 Layer 4)
+│   │   ├── wiki/             # Wiki screenset (production)
+│   │   │   ├── screens/      # Individual screens
+│   │   │   │   ├── DocumentView/
+│   │   │   │   │   ├── DocumentView.tsx
+│   │   │   │   │   ├── actions.ts      # Event emitters
+│   │   │   │   │   ├── effects.ts      # Event subscribers
+│   │   │   │   │   └── slice.ts        # State slice
+│   │   │   │   ├── DocumentEditor/
+│   │   │   │   ├── RepositoryBrowser/
+│   │   │   │   ├── SearchResults/
+│   │   │   │   └── UserSettings/
+│   │   │   ├── layout/       # Layout components
+│   │   │   │   ├── WikiLayout.tsx
+│   │   │   │   ├── Sidebar.tsx
+│   │   │   │   ├── Header.tsx
+│   │   │   │   └── Footer.tsx
+│   │   │   ├── components/   # Shared components
+│   │   │   │   ├── WYSIWYGEditor/
+│   │   │   │   ├── CommentsPanel/
+│   │   │   │   ├── FileTree/
+│   │   │   │   └── DocumentTree/
+│   │   │   └── screenset.config.ts  # Screenset configuration
+│   │   ├── _blank/           # Blank screenset template
+│   │   └── screensetRegistry.tsx    # Registry to switch screen-sets
+│   ├── themes/               # Theme tokens and registries
+│   │   ├── default.ts        # Default theme
+│   │   ├── dark.ts           # Dark theme
+│   │   └── themeRegistry.ts  # Theme switcher
+│   ├── plugins/              # HAI3 framework plugins
+│   │   ├── wikiApiPlugin.ts  # Wiki API integration
+│   │   ├── gitProviderPlugin.ts
+│   │   └── commentsPlugin.ts
+│   └── services/             # Business logic services
+│       ├── wikiApi.ts        # Wiki API client
+│       ├── gitProvider.ts    # Git provider abstraction
+│       └── enrichmentProvider.ts
+├── context/                   # React Context providers (deprecated in favor of HAI3)
 │   ├── AuthContext.tsx       # User authentication state
-│   ├── ThemeContext.tsx      # Light/dark theme
 │   ├── RepositoryContext.tsx # Current repository state
 │   └── UserSettingsContext.tsx
 ├── services/                  # API client modules
@@ -132,9 +205,27 @@ src/frontend/
 
 ### 1.3 Architectural Vision
 
-The CyberWiki frontend is a React-based Single Page Application (SPA) that provides a format-agnostic, dual-mode reading and editing experience. It leverages hash-based routing to avoid server-side route configuration dependencies and uses a virtual content rendering pipeline to support non-destructive rich metadata layers (enrichments) over raw text.
+The Cyber Wiki frontend is built on FrontX (HAI3), an AI-optimized UI development framework that enforces a strict 4-layer architecture for maintainability and scalability. The application is organized into **screensets** — self-contained collections of screens, layouts, and components that can be independently developed, tested, and deployed.
 
-The architecture prioritizes seamless context switching between developer-centric raw code views and PM/designer-centric structured documentation views, without requiring a heavy global state management solution.
+**Core Architectural Principles:**
+
+1. **Event-Driven Flux Architecture**: Components emit events via actions; effects subscribe to events and call reducers; reducers update state. Zero direct Redux dispatch from components.
+
+2. **Screenset-Based Organization**: UI is organized into screensets (e.g., `wiki` screenset for production, `_blank` for templates). Each screenset contains screens, layouts, components, and state slices.
+
+3. **4-Layer Separation**:
+   - **L1 (SDK)**: Zero-dependency packages for state, API, i18n, screensets
+   - **L2 (Framework)**: Plugin system composing SDK capabilities
+   - **L3 (React)**: React bindings, hooks, providers
+   - **L4 (App)**: Cyber Wiki-specific screens, themes, plugins
+
+4. **Plugin-Based Extensibility**: Core functionality (API integration, comments, Git provider) implemented as HAI3 framework plugins, enabling clean separation and testability.
+
+5. **Format-Agnostic Rendering**: Virtual content rendering pipeline with distinct format renderers (Markdown, YAML, Code) supporting non-destructive enrichments (comments, diffs) over raw text.
+
+6. **Dual-Mode Navigation**: Seamless switching between developer-centric raw file views and PM/designer-centric structured documentation views.
+
+The architecture prioritizes AI-assisted development, enabling rapid iteration from drafts to production-ready screens while maintaining architectural discipline across the codebase.
 
 ### 1.4 Architecture Drivers
 
@@ -142,9 +233,13 @@ The architecture prioritizes seamless context switching between developer-centri
 
 | Requirement | Design Response |
 |-------------|------------------|
-| `cpt-cyberwiki-fr-dual-navigation` | Mode Switching Mechanism per repository between Developer Mode (raw files) and Document Mode (clean hierarchy). |
+| `cpt-cyberwiki-fr-live-edit` | WYSIWYG editor with raw mode toggle; state managed via HAI3 event-driven Flux (actions → events → effects → reducers). |
+| `cpt-cyberwiki-fr-dual-navigation` | Mode Switching Mechanism per repository between Developer Mode (raw files) and Document Mode (clean hierarchy); mode state in user preferences slice. |
 | `cpt-cyberwiki-fr-format-agnostic-rendering` | Virtual Content Rendering Pipeline with distinct Format Renderers (PlainText, Markdown, YAML, Code). |
 | `cpt-cyberwiki-fr-enrichments` | Dual Mapping System for overlaying metadata (PR diffs, comments) onto both raw lines and rendered blocks. |
+| `cpt-cyberwiki-fr-document-level-comments` | Document-level comments component in wiki screenset; state managed via comments slice and effects. |
+| `cpt-cyberwiki-fr-fulltext-search` | Search screen in wiki screenset; search API plugin with REST protocol; results state in search slice. |
+| `cpt-cyberwiki-fr-git-viewer-navigation` | Deep linking via URL patterns; Git URL parser utility; "View in Git" button component. |
 
 #### NFR Allocation
 
@@ -348,9 +443,92 @@ Modern browsers only (Chrome 90+, Firefox 88+, Safari 14+, Edge 90+). No polyfil
 
 ## 3. Technical Architecture
 
-### 3.1 Domain Model
+### 3.1 HAI3 Event-Driven State Management
 
-**Technology**: TypeScript Interfaces/Types (`src/frontend/types.ts`)
+**Pattern**: Event-Driven Flux Architecture (HAI3)
+
+The Cyber Wiki frontend uses HAI3's event-driven Flux pattern, which differs from traditional Redux:
+
+**Traditional Redux Pattern (NOT USED):**
+```typescript
+// Component directly dispatches action
+dispatch(updateDocument({ id, content }));
+```
+
+**HAI3 Event-Driven Pattern (USED):**
+```typescript
+// 1. Component calls action (pure function that emits event)
+actions.updateDocument({ id, content });
+
+// 2. Action emits event to EventBus
+eventBus.emit('documentUpdated', { id, content });
+
+// 3. Effect subscribes to event and calls reducer
+effects.onDocumentUpdated((payload) => {
+  store.dispatch(documentSlice.actions.setContent(payload));
+});
+
+// 4. Reducer updates state (pure function)
+reducers: {
+  setContent: (state, action) => {
+    state.documents[action.payload.id] = action.payload.content;
+  }
+}
+```
+
+**Key Components:**
+
+1. **Actions** (`actions.ts`): Pure functions that emit events via `eventBus.emit()`. No direct Redux dispatch.
+2. **Events**: Past-tense messages (e.g., `documentUpdated`, `commentAdded`) broadcast via EventBus.
+3. **Effects** (`effects.ts`): Subscribe to events and orchestrate side effects (API calls, reducer calls).
+4. **Reducers** (`slice.ts`): Pure state update functions in Redux Toolkit slices.
+5. **Slices**: Redux Toolkit slices containing reducers + initial state.
+
+**Benefits:**
+- Decouples components from Redux (components only call actions)
+- Enables cross-slice coordination via event subscriptions
+- Simplifies testing (mock EventBus instead of Redux store)
+- Supports async workflows without middleware complexity
+
+**Example: Document Editor State Flow:**
+
+```typescript
+// src/screensets/wiki/screens/DocumentEditor/actions.ts
+export const actions = {
+  saveDocument: (payload: { id: string; content: string }) => {
+    eventBus.emit('documentSaveRequested', payload);
+  }
+};
+
+// src/screensets/wiki/screens/DocumentEditor/effects.ts
+export const effects: EffectInitializer = (store) => {
+  eventBus.on('documentSaveRequested', async (payload) => {
+    // Call API
+    const result = await wikiApi.saveDocument(payload);
+    
+    // Update state via reducer
+    store.dispatch(documentSlice.actions.setContent(result));
+    
+    // Emit success event
+    eventBus.emit('documentSaved', result);
+  });
+};
+
+// src/screensets/wiki/screens/DocumentEditor/slice.ts
+export const documentSlice = createSlice({
+  name: 'document',
+  initialState: { documents: {}, loading: false },
+  reducers: {
+    setContent: (state, action) => {
+      state.documents[action.payload.id] = action.payload.content;
+    }
+  }
+});
+```
+
+### 3.2 Domain Model
+
+**Technology**: TypeScript Interfaces/Types (`src/types.ts`)
 
 **Core Entities**:
 
@@ -360,8 +538,11 @@ Modern browsers only (Chrome 90+, Firefox 88+, Safari 14+, Edge 90+). No polyfil
 | Enrichment | Metadata layer (comment, diff, annotation) | `types.ts` |
 | Repository | Git repository context | `types.ts` |
 | TreeNode | Tree data structure for sidebar navigation | `types.ts` |
+| Document | Document metadata and content | `types.ts` |
+| Comment | Inline or document-level comment | `types.ts` |
+| User | User profile and preferences | `types.ts` |
 
-### 3.2 Component Model
+### 3.3 Component Model
 
 #### Virtual Content Pipeline
 
