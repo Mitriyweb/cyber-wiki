@@ -9,6 +9,12 @@ cd "$REPO_ROOT"
 
 echo "Starting cyber-wiki locally (multi-repo setup)..."
 
+# Kill any existing processes on ports 8000 and 5173
+echo "Checking for existing processes on ports 8000 and 5173..."
+lsof -ti:8000 | xargs kill -9 2>/dev/null || true
+lsof -ti:5173 | xargs kill -9 2>/dev/null || true
+sleep 1
+
 # Define paths to backend and frontend repos
 BACKEND_PATH="$REPO_ROOT/.workspace-sources/cyberfabric/cyber-wiki-back"
 FRONTEND_PATH="$REPO_ROOT/.workspace-sources/cyberfabric/cyber-wiki-front"
@@ -51,11 +57,14 @@ echo "Starting backend on :8000..."
   python manage.py migrate --noinput
   python manage.py shell -c "
 from django.contrib.auth.models import User
-if not User.objects.filter(username='admin').exists():
+try:
+    admin = User.objects.get(username='admin')
+    admin.set_password('admin')
+    admin.save()
+    print('Updated admin user password (admin/admin)')
+except User.DoesNotExist:
     User.objects.create_superuser('admin', 'admin@example.com', 'admin')
     print('Created default admin user (admin/admin)')
-else:
-    print('Admin user already exists')
 "
   python manage.py runserver 0.0.0.0:8000
 ) &
@@ -68,9 +77,30 @@ cleanup() {
 }
 trap cleanup EXIT
 
+# Wait for backend to be ready
+echo "Waiting for backend to be ready..."
+sleep 3
+
 # Start frontend if it exists and is configured
 if [ -d "$FRONTEND_PATH" ] && [ -f "$FRONTEND_PATH/package.json" ]; then
-  echo "Starting frontend with Vite..."
+  echo ""
+  echo "=========================================="
+  echo "🚀 CyberWiki Local Development"
+  echo "=========================================="
+  echo ""
+  echo "Backend:  http://localhost:8000"
+  echo "Frontend: http://localhost:5173 (starting...)"
+  echo ""
+  echo "Backend endpoints:"
+  echo "  - API:        http://localhost:8000/api/"
+  echo "  - Admin:      http://localhost:8000/admin/ (admin/admin)"
+  echo "  - API Docs:   http://localhost:8000/api/docs/"
+  echo "  - ReDoc:      http://localhost:8000/api/redoc/"
+  echo ""
+  echo "Press Ctrl+C to stop both servers"
+  echo "=========================================="
+  echo ""
+  
   cd "$FRONTEND_PATH"
   npm run dev
 else
@@ -84,7 +114,7 @@ else
   echo ""
   echo "Available endpoints:"
   echo "  - API:        http://localhost:8000/api/"
-  echo "  - Admin:      http://localhost:8000/admin/"
+  echo "  - Admin:      http://localhost:8000/admin/ (admin/admin)"
   echo "  - API Docs:   http://localhost:8000/api/docs/"
   echo "  - Health:     http://localhost:8000/api/users/health/"
   echo ""

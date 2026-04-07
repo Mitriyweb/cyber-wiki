@@ -15,7 +15,7 @@ This repository contains documentation and deployment scripts for the CyberWiki 
 ### Prerequisites
 
 - Python 3.14+
-- Node.js 18+ (for frontend)
+- Node.js 25+ (for frontend)
 - Git
 
 ### Running Locally
@@ -28,8 +28,9 @@ From this repository root:
 
 This will:
 1. Start the backend on http://localhost:8000
-2. Start the frontend on http://localhost:3000 (if available)
+2. Start the frontend on http://localhost:5173
 3. Auto-create admin user (admin/admin)
+4. Run migrations automatically
 
 ### First Time Setup
 
@@ -80,35 +81,58 @@ cyber-wiki/                          # Main repo (this one)
 └── .cypilot-workspace.toml          # Workspace configuration
 ```
 
-## Documentation
+## Development Status
 
-- **[Product Requirements](docs/specs/PRD.md)** - Feature requirements and use cases
-- **[Backend Design](docs/specs/backend/DESIGN.md)** - Backend architecture and API design
-- **[Frontend Design](docs/specs/frontend/DESIGN.md)** - Frontend architecture and components
-- **[Implementation Gaps](docs/specs/GAPS.md)** - Current implementation status
+### Backend ✅ COMPLETE
 
-## Development
+Django REST API with 70+ endpoints, 18 models, and comprehensive test coverage.
 
-### Backend
-
-See [Backend README](.workspace-sources/cyberfabric/cyber-wiki-back/README.md) for detailed backend development instructions.
-
-Key endpoints:
+**Endpoints**:
 - API: http://localhost:8000/api/
-- Admin: http://localhost:8000/admin/
-- API Docs: http://localhost:8000/api/docs/
+- Admin: http://localhost:8000/admin/ (credentials: `admin`/`admin`)
+- Swagger Docs: http://localhost:8000/api/docs/
+- ReDoc: http://localhost:8000/api/redoc/
 
-### Frontend
+**Core Features**:
+- ✅ Token-based authentication (Bearer tokens)
+- ✅ Git provider abstraction (GitHub, Bitbucket Server)
+- ✅ Document management with UUID-based IDs
+- ✅ Tree builder & navigation
+- ✅ Comments with line anchoring
+- ✅ Change management workflow
+- ✅ Auto-tagging (TF-IDF)
+- ✅ Link extraction & validation
+- ✅ Background Git sync
 
-See Frontend README (when available) for frontend development instructions.
+### Frontend ✅ AUTHENTICATION COMPLETE
 
-## Architecture
+React application built with hai3 framework and OpenSpec workflow.
 
-CyberWiki is built with:
+**Current Features**:
+- ✅ Token-based authentication with login screen
+- ✅ Redux state management (FLUX pattern)
+- ✅ Event-driven architecture
+- ✅ i18n support (English + Spanish)
+- ✅ Demo screenset with UI components
+
+**Access**:
+- App: http://localhost:5173
+- Login: `admin`/`admin`
+
+**Next Steps**:
+1. Repository browser
+2. Document viewer
+3. Comment UI
+4. Tag management
+5. Change approval workflow
+
+## Tech Stack
+
 - **Backend**: Django 5.2 + Django REST Framework
-- **Frontend**: React (planned)
+- **Frontend**: React + hai3 framework + Redux
 - **Database**: SQLite (dev) / PostgreSQL (production)
-- **Git Integration**: GitPython for repository operations
+- **Git Integration**: GitPython
+- **Authentication**: Bearer tokens (JWT-like)
 
 ## Contributing
 
