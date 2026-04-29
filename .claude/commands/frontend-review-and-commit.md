@@ -1,8 +1,4 @@
----
-description: Review code changes and create commit following cyber-wiki standards
----
-
-# Review & Commit Workflow
+Review code changes and create commit following cyber-wiki standards.
 
 The full workflow is defined in the source repository. Read and follow:
 
